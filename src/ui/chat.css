@@ -1,0 +1,123 @@
+/* POC layout (status, prompt, actions, reply) in the header's matrix theme.
+   Fills the chat box; only the reply scrolls. */
+.llm {
+  --llm-text: #e6ffea;
+  --llm-green: #00ff33;
+  --llm-dim: rgba(0, 255, 51, 0.35);
+  --llm-glow: 0 0 8px rgba(0, 255, 51, 0.6);
+
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(10px, 2vw, 18px);
+  color: var(--llm-text);
+  font-family: Consolas, "Lucida Console", "Courier New", Courier, monospace;
+}
+
+.llm .status {
+  flex: none;
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+
+.llm textarea {
+  flex: none;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 3.5em;
+  max-height: 35%;
+  resize: vertical;
+  padding: 10px;
+  /* 16px stops iOS zooming into the field on focus */
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--llm-text);
+  caret-color: var(--llm-green);
+  background: #000;
+  border: 1px solid var(--llm-dim);
+  border-radius: 8px;
+  outline: none;
+}
+
+.llm textarea::placeholder {
+  color: var(--llm-text);
+  opacity: 0.4;
+}
+
+.llm textarea:focus {
+  border-color: var(--llm-green);
+  box-shadow: var(--llm-glow);
+}
+
+.llm .actions {
+  flex: none;
+  display: flex;
+  gap: 8px;
+}
+
+.llm button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  color: var(--llm-text);
+  text-shadow: var(--llm-glow);
+  background: transparent;
+  border: 1px solid var(--llm-dim);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.llm button:hover:not(:disabled),
+.llm button:focus-visible {
+  border-color: var(--llm-green);
+  box-shadow: var(--llm-glow);
+  outline: none;
+}
+
+.llm button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.llm .reply {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Short screens (phone landscape, keyboard open): tighter spacing so the reply keeps some room */
+@media (max-height: 500px) {
+  .llm {
+    gap: 6px;
+    padding: 8px;
+  }
+  .llm .status {
+    font-size: 12px;
+  }
+  .llm textarea {
+    min-height: 2.6em;
+    max-height: 25%;
+    padding: 6px 8px;
+  }
+  .llm button {
+    min-height: 34px;
+    padding: 4px 8px;
+  }
+}

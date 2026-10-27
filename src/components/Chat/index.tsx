@@ -1,4 +1,9 @@
 import style from '../../styles.module.css'
+import LlmChat from '../../ui/Chat.jsx'
 
-// Placeholder for the LLM chat. Layout only; no implementation yet.
-export const Chat = () => <section id='chat' className={style.chat} />
+// Box for the in-browser LLM chat (ported from the browser_llm POC in src/llm and src/ui).
+export const Chat = () => (
+  <section id='chat' className={style.chat}>
+    <LlmChat />
+  </section>
+)

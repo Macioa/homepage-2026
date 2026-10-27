@@ -1,0 +1,79 @@
+/* Full-viewport column: header / stage / footer */
+.app {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+/* Name: one line, spans the width at any viewport size */
+.header {
+  flex: none;
+  padding: clamp(0.75rem, 3vh, 2.5rem) 0 clamp(0.5rem, 2vh, 1.5rem);
+  text-align: center;
+}
+
+.name {
+  margin: 0;
+  /* Matrix/terminal style */
+  font-family: Consolas, 'Lucida Console', 'Courier New', Courier, monospace;
+  font-weight: normal;
+  /* near-white core with a green phosphor glow */
+  color: #e6ffea;
+  text-shadow: 0 0 8px rgba(0, 255, 51, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-right: -2px; /* offset trailing tracking so text centers */
+  /* 15 monospace chars ~= 8.25em + 15 * 2px, so this fills ~90vw; vh cap keeps short screens usable */
+  font-size: min(calc((90vw - 30px) / 8.25), 16vh);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 0 1rem;
+}
+
+/* LLM chat box: readable column on desktop, full width on mobile */
+.chat {
+  box-sizing: border-box;
+  width: min(100%, 52rem);
+  height: 100%;
+  min-height: 12rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+}
+
+.footer {
+  flex: none;
+  width: 100%;
+  padding: clamp(0.75rem, 3vh, 2rem) 0;
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.footerLink {
+  width: 50px;
+  height: 50px;
+}
+
+.footer img {
+  color: white;
+  fill: currentColor;
+}
+
+:global(body) {
+  margin: 0;
+  overflow: hidden;
+  /* was the Three.js renderer clear color */
+  background: #000;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+}

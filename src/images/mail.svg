@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   viewBox="0 0 32 32"
+   version="1.1"
+   id="svg113"
+   sodipodi:docname="Mail2.svg"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)">
+  <defs
+     id="defs117" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1027"
+     id="namedview115"
+     showgrid="false"
+     inkscape:zoom="7.375"
+     inkscape:cx="16"
+     inkscape:cy="16"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg113" />
+  <path
+     d="     M0 4     L0 6     L16 16     L32 6     L32 4     z     M0 9     L0 28     L32 28     L32 9     L16 19      z      "
+     id="path109" />
+  <metadata
+     id="metadata111">
+    <rdf:RDF>
+      <rdf:Description
+         about="https://iconscout.com/legal#licenses"
+         dc:title="293638,mail"
+         dc:description="293638,mail"
+         dc:publisher="Iconscout"
+         dc:date="2017-02-24"
+         dc:format="image/svg+xml"
+         dc:language="en">
+        <dc:creator>
+          <rdf:Bag>
+            <rdf:li>Geom Icons</rdf:li>
+          </rdf:Bag>
+        </dc:creator>
+      </rdf:Description>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <path
+     style="fill:#ffffff;stroke-width:0.13559322"
+     d="m 0,18.522034 c 0,-5.145763 0.03073059,-9.3559323 0.06829018,-9.3559323 0.03755961,0 3.63755962,2.2311513 8.00000002,4.9581133 L 16,19.082329 23.93171,14.124215 c 4.362441,-2.726962 7.962441,-4.9581133 8,-4.9581133 0.03756,0 0.06829,4.2101693 0.06829,9.3559323 v 9.355932 H 16 0 Z"
+     id="path119"
+     inkscape:connector-curvature="0" />
+  <path
+     style="fill:#ffffff;stroke-width:0.13559322"
+     d="M 8.0415311,10.938213 0.06779661,5.9554546 0.02795802,4.984507 -0.01188056,4.0135593 H 16 32.011881 l -0.03984,0.978613 -0.03984,0.9786129 -7.958469,4.9750928 -7.958469,4.975093 z"
+     id="path121"
+     inkscape:connector-curvature="0" />
+</svg>

@@ -1,0 +1,55 @@
+# Optional self-hosted deploy; production is served by Netlify (netlify.toml)
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-server
+  namespace: default
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
+  selector:
+    app: web-server
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-server
+  namespace: default
+  labels:
+    app: web-server
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: web-server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 50%
+      maxSurge: 50%
+  template:
+    metadata:
+      labels:
+        app: web-server
+    spec:
+      terminationGracePeriodSeconds: 40
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: web-server
+          # TODO: old image was r.cfcr.io/macioa/macioa/homepage:master (Codefresh registry); set new registry
+          image: ghcr.io/macioa/homepage-2026:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80

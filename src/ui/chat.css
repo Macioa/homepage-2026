@@ -16,6 +16,81 @@
   font-family: Consolas, "Lucida Console", "Courier New", Courier, monospace;
 }
 
+/* Load / warm-up bars: pixel blocks inside an open frame. Side by side when there's room. */
+.llm .progress {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.llm .pixelbar {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.llm .pixelbar-label {
+  flex: none;
+  width: 4ch;
+  text-shadow: var(--llm-glow);
+}
+
+.llm .pixelbar-value {
+  flex: none;
+  width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.llm .pixelbar-frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 12px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--llm-dim);
+  overflow: hidden;
+}
+
+.llm .pixelbar-fill {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  background: repeating-linear-gradient(90deg, var(--llm-green) 0 5px, transparent 5px 7px);
+  box-shadow: 0 0 6px rgba(0, 255, 51, 0.5);
+  transition: width 0.3s steps(4);
+}
+
+/* Warm-up has no progress events: a block of pixels sweeps across instead. */
+.llm .pixelbar-frame.scanning .pixelbar-fill {
+  width: 25%;
+  animation: pixelbar-scan 1.4s steps(18) infinite alternate;
+}
+
+@keyframes pixelbar-scan {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .llm .pixelbar-frame.scanning .pixelbar-fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 .llm .status {
   flex: none;
   margin: 0;
@@ -24,12 +99,18 @@
   overflow-wrap: anywhere;
 }
 
-.llm textarea {
+/* Prompt: textarea plus a mirror layer that draws the blinking block cursor (PromptInput.jsx) */
+.llm .prompt {
   flex: none;
+  position: relative;
+}
+
+.llm textarea {
+  display: block;
   width: 100%;
   box-sizing: border-box;
   min-height: 3.5em;
-  max-height: 35%;
+  max-height: 30dvh;
   resize: vertical;
   padding: 10px;
   /* 16px stops iOS zooming into the field on focus */
@@ -37,7 +118,7 @@
   font-size: 16px;
   line-height: 1.4;
   color: var(--llm-text);
-  caret-color: var(--llm-green);
+  caret-color: transparent;
   background: #000;
   border: 1px solid var(--llm-dim);
   border-radius: 8px;
@@ -52,6 +133,46 @@
 .llm textarea:focus {
   border-color: var(--llm-green);
   box-shadow: var(--llm-glow);
+}
+
+/* Same box and text metrics as the textarea, so wrapping matches; only the cursor is visible */
+.llm .prompt-mirror {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 10px;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: transparent;
+}
+
+.llm .prompt-cursor {
+  color: #000;
+  background: var(--llm-green);
+  box-shadow: 0 0 6px var(--llm-green);
+  animation: prompt-blink 1.06s steps(1) infinite;
+}
+
+.llm textarea:not(:focus) + .prompt-mirror .prompt-cursor {
+  opacity: 0.45;
+}
+
+@keyframes prompt-blink {
+  50% {
+    background: transparent;
+    box-shadow: none;
+    color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .llm .prompt-cursor {
+    animation: none;
+  }
 }
 
 .llm .actions {
@@ -90,16 +211,315 @@
   cursor: default;
 }
 
-.llm .reply {
+/* Reply output inside an early-90s CRT (see CrtFrame.jsx). Case, recess and chin are CSS so
+   they stretch to the box; --s scales the plastic down on small screens. */
+.llm .crt {
+  --s: clamp(6px, 1.2vw, 12px);
+  --chin: 28px;
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.llm .crt-case {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.5);
+  padding: var(--s) var(--s) calc(var(--s) * 0.4);
+  border-radius: 16px;
+  background: linear-gradient(#e6dec8, #c7bda3);
+  border: 1px solid #9c937a;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.18),
+    0 0 14px rgba(0, 255, 51, 0.08);
+}
+
+/* plastic lip around the tube, then a dark ring, then the glass */
+.llm .crt-recess {
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: calc(var(--s) * 0.35);
+  border: calc(var(--s) * 0.4) solid;
+  border-color: #8e866f #a59c83 #b8af95 #958d76;
+  border-radius: 12px;
+  background: #1b1c19;
+}
+
+.llm .crt-chin {
+  flex: none;
+  height: var(--chin);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.llm .crt-spacer {
+  flex: 1 1 0;
+}
+
+.llm .crt-led {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--llm-green);
+  box-shadow: 0 0 6px var(--llm-green);
+}
+
+.llm .crt-badge {
+  flex: none;
+  padding: 2px 10px;
+  font: 10px/1.4 Arial, Helvetica, sans-serif;
+  letter-spacing: 3px;
+  color: #6d6550;
+  background: #d2c9b0;
+  border: 1px solid #a49b82;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.llm .crt-label {
+  flex: none;
+  font: 10px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 3px;
+  color: #7a725c;
+  white-space: nowrap;
+}
+
+.llm .crt-vents {
+  flex: none;
+  width: 52px;
+  height: 20px;
+  background: repeating-linear-gradient(90deg, #a9a088 0 4px, transparent 4px 10px);
+}
+
+.llm .crt-knob,
+.llm .crt-rocker,
+.llm .crt-square,
+.llm .crt-pill {
+  flex: none;
+  background: linear-gradient(#f1ead6, #a69d84);
+  border: 1px solid #8d846c;
+}
+
+.llm .crt-knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.llm .crt-rocker {
+  width: 44px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.llm .crt-square {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+}
+
+.llm .crt-pill {
+  width: 36px;
+  height: 18px;
+  margin-left: 8px;
+  border-radius: 9px;
+}
+
+/* B: charcoal workstation, beveled tunnel, separate control strip */
+.llm .crt-b .crt-case {
+  border-radius: 8px;
+  background: linear-gradient(#3a3c3b, #1e2020);
+  border-color: #4a4d4c;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    0 0 14px rgba(0, 255, 51, 0.08);
+}
+
+.llm .crt-b .crt-recess {
+  border-width: calc(var(--s) * 0.7);
+  border-color: #141515 #2c2e2d #3a3d3c #101111;
+  border-radius: 3px;
+  background: #050606;
+}
+
+.llm .crt-b .crt-chin {
+  height: calc(var(--chin) + 2px);
+  padding: 0 14px;
+  background: #191a1a;
+  border: 1px solid #0c0d0d;
+  border-radius: 4px;
+}
+
+.llm .crt-b .crt-label {
+  color: #7b807e;
+}
+
+.llm .crt-b .crt-knob {
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(#555857, #1a1b1b);
+  border-color: #0a0a0a;
+}
+
+.llm .crt-btn {
+  flex: none;
+  width: 20px;
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(#555857, #1a1b1b);
+  border: 1px solid #0a0a0a;
+}
+
+.llm .crt-led-slit {
+  width: 10px;
+  height: 3px;
+  border-radius: 1.5px;
+}
+
+/* C: all-in-one terminal, rounder body, narrower bulging tube */
+.llm .crt-c .crt-case {
+  border-radius: 26px;
+  padding-inline: clamp(10px, 6%, 64px);
+  padding-bottom: var(--s);
+}
+
+.llm .crt-c .crt-recess {
+  border-radius: 20px;
+}
+
+.llm .crt-c .crt-screen {
+  border-radius: 30px / 26px;
+}
+
+.llm .crt-c .crt-chin {
+  height: calc(var(--chin) + 4px);
+}
+
+.llm .crt-floppy {
+  flex: 0 1 130px;
+  min-width: 60px;
+  height: 14px;
+  border-radius: 2px;
+  background: linear-gradient(#4a4537, #4a4537) center / calc(100% - 12px) 4px no-repeat, #bcb399;
+}
+
+.llm .crt-plate {
+  flex: none;
+  width: 64px;
+  height: 24px;
+  border-radius: 4px;
+  background: #d6cdb4;
+  border: 1px solid #a49b82;
+}
+
+.llm .crt-grille {
+  flex: 0 1 130px;
+  min-width: 40px;
+  height: 28px;
+  background: repeating-linear-gradient(0deg, #a9a088 0 3px, transparent 3px 8px);
+}
+
+/* D: monitor on a tilt-swivel stand */
+.llm .crt-d .crt-case {
+  border-radius: 14px;
+}
+
+.llm .crt-stand {
+  flex: none;
+  align-self: center;
+  width: clamp(120px, 40%, 260px);
+  height: 16px;
+  background:
+    linear-gradient(#a69d84, #a69d84) bottom / 100% 5px no-repeat,
+    linear-gradient(90deg, #8e866f, #b8af95, #8e866f) top / 70% calc(100% - 5px) no-repeat;
+  clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%);
+}
+
+/* Narrow screens: fewer controls, tighter badge text */
+@media (max-width: 520px) {
+  .llm .crt {
+    --chin: 22px;
+  }
+  .llm .crt-extra {
+    display: none;
+  }
+  .llm .crt-badge,
+  .llm .crt-label {
+    letter-spacing: 1px;
+  }
+}
+
+/* The stand only fits when there is height to spare */
+@media (max-height: 820px), (max-width: 520px) {
+  .llm .crt-stand {
+    display: none;
+  }
+}
+
+.llm .crt-screen {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  /* a bit rounder than the bezel, like bulging glass */
+  border-radius: 22px / 18px;
+  background: radial-gradient(ellipse at 50% 45%, #061a0b 0%, #020904 60%, #000 100%);
+  box-shadow:
+    inset 0 0 18px 6px rgba(0, 0, 0, 0.9),
+    inset 0 0 40px rgba(0, 255, 51, 0.08);
+}
+
+/* scanlines + vignette + top glare, on the glass above the text */
+.llm .crt-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(170deg, rgba(230, 255, 234, 0.07) 0%, transparent 28%),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 3px);
+  animation: crt-flicker 6s steps(1) infinite;
+}
+
+@keyframes crt-flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 0.92; }
+  48% { opacity: 1; }
+  83% { opacity: 0.95; }
+  84% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .llm .crt-screen::after {
+    animation: none;
+  }
+}
+
+.llm .reply {
+  height: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
   margin: 0;
+  padding: 14px 16px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: inherit;
   font-size: 15px;
   line-height: 1.5;
+  text-shadow: 0 0 4px rgba(0, 255, 51, 0.45);
+  scrollbar-width: thin;
+  scrollbar-color: var(--llm-dim) transparent;
 }
 
 /* Short screens (phone landscape, keyboard open): tighter spacing so the reply keeps some room */
@@ -113,11 +533,35 @@
   }
   .llm textarea {
     min-height: 2.6em;
-    max-height: 25%;
+    max-height: 20dvh;
+    padding: 6px 8px;
+  }
+  .llm .prompt-mirror {
     padding: 6px 8px;
   }
   .llm button {
     min-height: 34px;
     padding: 4px 8px;
+  }
+  .llm .crt {
+    --s: 5px;
+    --chin: 16px;
+  }
+  .llm .crt-extra,
+  .llm .crt-stand {
+    display: none;
+  }
+  .llm .crt-b .crt-chin,
+  .llm .crt-c .crt-chin {
+    height: var(--chin);
+  }
+  .llm .crt-knob,
+  .llm .crt-rocker,
+  .llm .crt-pill,
+  .llm .crt-grille {
+    transform: scale(0.75);
+  }
+  .llm .reply {
+    padding: 8px 10px;
   }
 }

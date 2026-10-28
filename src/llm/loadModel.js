@@ -1,7 +1,7 @@
 // Load the model at the largest context size this machine has proven it can handle.
 // On failure the page reloads at the same size (once, after a mid-read reload) or one size smaller.
 
-import { RELOAD_DELAY_MS, RETRY_SAME_SIZE_DELAY_MS } from "./config.js";
+import { CONTEXT_SIZES, RELOAD_DELAY_MS, RETRY_SAME_SIZE_DELAY_MS } from "./config.js";
 import {
   forgetContextSize,
   rememberContextSize,
@@ -47,7 +47,7 @@ function handleLoadFailure(size, err, onStatus) {
   const smaller = smallerContextSize(size);
   if (!smaller) {
     forgetContextSize();
-    onStatus("Error: could not load the model at any context size.");
+    onStatus(`Model failed to load at every context size (${CONTEXT_SIZES.join(", ")} tokens).`);
     return;
   }
 

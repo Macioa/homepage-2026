@@ -6,8 +6,12 @@ import { LlmSession } from "../llm/session.js";
 export function useLlmSession() {
   const [status, setStatus] = useState("Loading model...");
   const [ready, setReady] = useState(false);
-  const [busy, setBusy] = useState(false);
   const sessionRef = useRef(null);
+  // Stable handle for the harness (see webllmModel in src/harness/model.ts).
+  const [model] = useState(() => ({
+    complete: (messages, options) => sessionRef.current.complete(messages, options),
+    stop: () => sessionRef.current?.stop("user"),
+  }));
 
   useEffect(() => {
     if (sessionRef.current) return;
@@ -15,21 +19,10 @@ export function useLlmSession() {
     sessionRef.current.load();
   }, []);
 
-  async function ask(prompt, onText) {
-    setBusy(true);
-    try {
-      await sessionRef.current.ask(prompt, onText);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return {
     status,
     ready,
-    busy,
-    ask,
-    stop: () => sessionRef.current?.stop("user"),
+    model,
     reload: () => sessionRef.current?.reload(),
   };
 }

@@ -1,19 +1,25 @@
-// Tool registry: look up tools by name, or the ones a prompt is offered.
+// Tool register
 
-import type { Prompt } from './types'
-import type { Tool } from './defineTool'
+import { finishAndReply, noAppropriateTool, resetContext } from './functionalTools'
+import { testGetProjects, testGetSkills, testSearchJobs } from './testTools'
+import { toToolSpec, type Tool } from './tool'
 
-export { defineTool, type Tool, type ToolContext } from './defineTool'
+export const TOOLS: Tool[] = [
+  // functional
+  finishAndReply,
+  resetContext,
+  noAppropriateTool,
+  // TEST
+  testGetSkills,
+  testGetProjects,
+  testSearchJobs
+]
 
-export type Registry = ReturnType<typeof createRegistry>
+// Tool index
 
-export function createRegistry(list: Tool[]) {
-  const byName = new Map(list.map(tool => [tool.name, tool]))
-  return {
-    list,
-    names: list.map(tool => tool.name),
-    get: (name: string) => byName.get(name),
-    // The tools this prompt may use (see Tool.offerIf).
-    offered: (prompt: Prompt) => list.filter(tool => !tool.offerIf || tool.offerIf(prompt))
-  }
-}
+export const TOOL_INDEX: Record<string, Tool | undefined> = Object.fromEntries(TOOLS.map(tool => [tool.name, tool]))
+
+export const TOOL_SPECS = TOOLS.map(toToolSpec)
+
+export { finishAndReply, noAppropriateTool, resetContext, testGetProjects, testGetSkills, testSearchJobs, toToolSpec }
+export type { DataTool, FunctionalTool, Tool } from './tool'

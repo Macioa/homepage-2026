@@ -18,6 +18,7 @@ function loopProgress(status) {
 
 // Prompt, Send/Stop, and a CRT screen the reply is typed into.
 // onSend(prompt, signal) resolves to the answer text; without it, Send stays disabled.
+/** @param {{ onSend?: (prompt: string, signal: AbortSignal) => Promise<string> }} props */
 export default function Chat({ onSend = undefined }) {
   const [status, setStatus] = useState("idle");
   const busy = status === "running";

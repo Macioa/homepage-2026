@@ -1,7 +1,8 @@
 # homepage-2026
 Personal homepage (React + Redux), 2026
 
-- `npm run dev` - Vite dev server
+- `netlify dev` - Vite plus the Netlify functions (`/api/*`) on port 8888; keys from the Netlify site env (see `.env.example`)
+- `npm run dev` - Vite dev server only (no `/api`)
 - `npm run build` - build to `dist/`
 - `npm test` - tests (vitest)
 - Deploy: Netlify (`netlify.toml`)

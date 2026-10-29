@@ -1,5 +1,6 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit'
 import { authReducer, startChatAuth } from './auth'
+import { harnessReducer } from './harness'
 
 const ui = createSlice({
   name: 'ui',
@@ -14,7 +15,7 @@ const ui = createSlice({
 export const { setReady } = ui.actions
 
 export const store = configureStore({
-  reducer: { ui: ui.reducer, auth: authReducer }
+  reducer: { ui: ui.reducer, auth: authReducer, harness: harnessReducer }
 })
 
 export type RootState = ReturnType<typeof store.getState>

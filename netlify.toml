@@ -1,12 +1,15 @@
 [build]
-  command = "npm run build"
+  # SPA fallback written at build only: as a [[redirects]] rule or public/_redirects, `netlify dev`
+  # applies it to Vite's module requests and the page loads blank.
+  command = "npm run build && echo '/*  /index.html  200' > dist/_redirects"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "24"
 
-# SPA fallback
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# `netlify dev`: Vite plus the functions in netlify/functions, with the site env vars injected
+[dev]
+  command = "npm run dev"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false

@@ -2,13 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 
-import { store } from './store'
-import { Header } from './components/Header'
-import { Stage } from './components/Stage'
-import { Chat } from './components/Chat'
-import { Footer } from './components/Footer'
+import { store } from './state'
+import { Header } from './ui/components/Header'
+import { Stage } from './ui/components/Stage'
+import { Chat } from './ui/components/Chat'
+import { Footer } from './ui/components/Footer'
 
-import styles from './styles.module.css'
+import styles from './ui/styles.module.css'
 
 const Root = document.getElementById('root')
 if (Root)

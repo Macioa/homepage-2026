@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Env files (keep the example)
+.env
+.env.*
+!.env.example
+
+# Generated knowledge graph
+graphify-out
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

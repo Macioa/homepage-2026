@@ -5,6 +5,7 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { callRpc } from '../connections/supabase'
 import { TOKEN_NOT_READY } from '../prompts'
+import { onNetworkError } from './networkErrors'
 
 export const USAGE_LIMIT = 10
 const LOCK_MS = 30_000
@@ -32,9 +33,9 @@ function toUsedCalls({ now, used }: UsageSnapshot, receivedAt: number): UsedCall
   return used.map(({ id, sent_at, expires_at }) => ({ id, sentAt: Date.parse(sent_at) + offset, expiresAt: Date.parse(expires_at) + offset }))
 }
 
-async function readWindow(fn: string, token: string | null) {
+async function readWindow(fn: string, token: string | null, dispatch: Parameters<typeof onNetworkError>[0]) {
   if (!token) throw new Error(TOKEN_NOT_READY)
-  const snapshot: UsageSnapshot = await callRpc(fn, {}, token)
+  const snapshot: UsageSnapshot = await callRpc(fn, {}, token, onNetworkError(dispatch))
   const receivedAt = Date.now()
   return { receivedAt, used: toUsedCalls(snapshot, receivedAt) }
 }
@@ -42,10 +43,10 @@ async function readWindow(fn: string, token: string | null) {
 const usageThunk = createAsyncThunk.withTypes<{ state: UsageRoot }>()
 
 // Logs one Gemini call; resolves to the window after it.
-export const logGeminiRequest = usageThunk('usage/log', (_: void, { getState }) => readWindow('log_gemini_request', getState().auth.token))
+export const logGeminiRequest = usageThunk('usage/log', (_: void, { getState, dispatch }) => readWindow('log_gemini_request', getState().auth.token, dispatch))
 
 // Reads the window (other visitors' calls included). Skipped until the chat JWT is in.
-export const fetchGeminiUsage = usageThunk('usage/fetch', (_: void, { getState }) => readWindow('get_gemini_usage', getState().auth.token), {
+export const fetchGeminiUsage = usageThunk('usage/fetch', (_: void, { getState, dispatch }) => readWindow('get_gemini_usage', getState().auth.token, dispatch), {
   condition: (_, { getState }) => Boolean(getState().auth.token)
 })
 

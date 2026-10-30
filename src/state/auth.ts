@@ -3,6 +3,7 @@
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { getChatToken } from '../connections/supabase'
+import { onNetworkError } from './networkErrors'
 
 const REFRESH_EARLY_MS = 60_000
 
@@ -15,7 +16,7 @@ export type AuthState = {
 
 const initialState: AuthState = { token: null, expiresAt: null, status: 'idle', error: null }
 
-export const fetchChatToken = createAsyncThunk('auth/fetchChatToken', getChatToken)
+export const fetchChatToken = createAsyncThunk('auth/fetchChatToken', (_: void, { dispatch }) => getChatToken(onNetworkError(dispatch)))
 
 const auth = createSlice({
   name: 'auth',

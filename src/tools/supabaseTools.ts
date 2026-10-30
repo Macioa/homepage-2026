@@ -11,9 +11,9 @@ const skillArgs = z.object({ skill: z.string().describe(TOOL_ARG.skill), mode: m
 const skillsArgs = z.object({ skills: z.array(z.string()).describe(TOOL_ARG.skills), mode: mode.optional() })
 const pitchArgs = z.object({ slugs: z.array(z.string()).describe(TOOL_ARG.slugs), mode })
 
-async function rpc(fn: string, args: Record<string, unknown>, { token, signal }: ToolContext) {
+async function rpc(fn: string, args: Record<string, unknown>, { token, signal, onError }: ToolContext) {
   if (!token) throw new DataAccessError(TOKEN_NOT_READY)
-  return callRpc(fn, args, token, signal)
+  return callRpc(fn, args, token, onError, signal)
 }
 
 // Names of every Ryan skill (public.get_all_skills).

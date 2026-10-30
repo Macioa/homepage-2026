@@ -1,8 +1,12 @@
 // Supabase: a 1-hour PostgREST JWT for the `chat` role, minted by the get-llm-token edge function
-// (personal repo), so the browser never holds a permanent key.
+// (personal repo), so the browser never holds a permanent key. Every failure is recorded where it happens (networkError.ts).
+
+import { logNetworkError, since, type OnNetworkError } from './networkError'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const ENV_NOT_SET = 'VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY not set'
+const TOKEN_TARGET = 'functions/v1/get-llm-token'
 // Statuses that mean Supabase itself failed (auth refused, server error), not the call's args.
 const AUTH_FAILURE_STATUSES = [401, 403]
 const SERVER_ERROR_STATUS = 500
@@ -14,24 +18,31 @@ export class DataAccessError extends Error {
 
 const isConnectionFailure = (status: number) => AUTH_FAILURE_STATUSES.includes(status) || status >= SERVER_ERROR_STATUS
 
+const rpcTarget = (fn: string) => `rest/v1/rpc/${fn}`
+
 export type ChatToken = { token: string; expires_at: number } // expires_at: unix seconds
 
-export async function getChatToken(): Promise<ChatToken> {
-  if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY not set')
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/get-llm-token`, {
+export async function getChatToken(onError: OnNetworkError): Promise<ChatToken> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw logNetworkError(new Error(ENV_NOT_SET), { source: 'supabase', kind: 'config', target: TOKEN_TARGET }, onError)
+  const start = Date.now()
+  const res = await fetch(`${SUPABASE_URL}/${TOKEN_TARGET}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     body: JSON.stringify({ role: 'chat' })
+  }).catch((error: Error) => {
+    throw logNetworkError(error, { source: 'supabase', kind: 'network', target: TOKEN_TARGET, elapsedMs: since(start) }, onError)
   })
   const body = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(body.error ?? `get-llm-token ${res.status}`)
+  const failure = { target: TOKEN_TARGET, status: res.status, elapsedMs: since(start), details: { response: body } }
+  if (!res.ok) throw logNetworkError(new Error(body.error ?? `get-llm-token ${res.status}`), { source: 'supabase', kind: 'http', ...failure }, onError)
   return body as ChatToken
 }
 
 // A network failure is a DataAccessError; an abort (user stop or timeout) stays an abort.
-async function fetchRpc(fn: string, args: Record<string, unknown>, token: string, signal?: AbortSignal) {
+async function fetchRpc(fn: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
+  const start = Date.now()
   try {
-    return await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    return await fetch(`${SUPABASE_URL}/${rpcTarget(fn)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
       body: JSON.stringify(args),
@@ -39,17 +50,20 @@ async function fetchRpc(fn: string, args: Record<string, unknown>, token: string
     })
   } catch (error) {
     if (signal?.aborted) throw error
-    throw new DataAccessError((error as Error).message)
+    const failure = { target: rpcTarget(fn), elapsedMs: since(start), details: { args } }
+    throw logNetworkError(new DataAccessError((error as Error).message), { source: 'supabase', kind: 'network', ...failure }, onError)
   }
 }
 
 // Calls a Postgres function through PostgREST as whoever the token names (the chat role). Connection
-// failures throw DataAccessError; any other error response (e.g. bad args) throws a plain Error.
-export async function callRpc(fn: string, args: Record<string, unknown>, token: string, signal?: AbortSignal) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) throw new DataAccessError('VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY not set')
-  const res = await fetchRpc(fn, args, token, signal)
+// failures throw DataAccessError; any other error response (e.g. bad args) is the function's and throws a plain Error.
+export async function callRpc(fn: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw logNetworkError(new DataAccessError(ENV_NOT_SET), { source: 'supabase', kind: 'config', target: rpcTarget(fn) }, onError)
+  const start = Date.now()
+  const res = await fetchRpc(fn, args, token, onError, signal)
   const body = await res.json().catch(() => null)
-  if (isConnectionFailure(res.status)) throw new DataAccessError(body?.message ?? `${fn} ${res.status}`)
-  if (!res.ok) throw new Error(body?.message ?? `${fn} ${res.status}`)
+  const failure = { kind: 'http', target: rpcTarget(fn), status: res.status, elapsedMs: since(start), details: { args, response: body } } as const
+  if (isConnectionFailure(res.status)) throw logNetworkError(new DataAccessError(body?.message ?? `${fn} ${res.status}`), { source: 'supabase', ...failure }, onError)
+  if (!res.ok) throw logNetworkError(new Error(body?.message ?? `${fn} ${res.status}`), { source: 'db_function', ...failure }, onError)
   return body
 }

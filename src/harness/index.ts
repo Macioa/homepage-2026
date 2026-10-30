@@ -9,7 +9,10 @@
 //            off_topic_question cancels the loop; the reply is a fixed message, not the LLM's
 //   failure  a failed Supabase connection stops all model calls; the reply is a fixed message, not the LLM's
 //            Gemini's usage limit disables Send for 30 seconds
+//            a model call that timed out in Netlify or Gemini is retried up to 3 times, each one logged
+//            in the rate window; no retry once the window is locked
 //   timeout  the whole run aborts after HARNESS_TIMEOUT_MS
+//   errors   every failed external request is kept in redux under networkErrorHistory (state/networkErrors.ts)
 
 import { freshContext } from './context'
 import { handleFailure } from './failure'

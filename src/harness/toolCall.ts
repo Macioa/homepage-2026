@@ -7,6 +7,7 @@ import { DataAccessError } from '../connections/supabase'
 import * as PROMPTS from '../prompts'
 import type { RootState } from '../state'
 import { saveToolCall, selectToolCall, type ToolCallRecord } from '../state/harness'
+import { onNetworkError } from '../state/networkErrors'
 import { finishAndReply, noAppropriateTool, TOOL_INDEX, type ToolContext } from '../tools'
 import { toolMessage } from './context'
 import type { Run } from './run'
@@ -30,8 +31,9 @@ function classifyCall(call: ToolCall, state: RootState): CallKind {
   return selectToolCall(state, toCallKey(call))?.ok ? 'duplicate' : 'run'
 }
 
-// The data tool's context: the chat JWT as redux holds it now (a refreshed token is used) and the run's signal.
-const toolContext = ({ store, signal }: Run): ToolContext => ({ token: store.getState().auth.token, signal })
+// The data tool's context: the chat JWT as redux holds it now (a refreshed token is used), the run's signal, and
+// onError recording failed requests in the network error history.
+const toolContext = ({ store, signal }: Run): ToolContext => ({ token: store.getState().auth.token, signal, onError: onNetworkError(store.dispatch) })
 
 async function runDataTool({ name, args }: ToolCall, ctx: ToolContext) {
   const tool = TOOL_INDEX[name]

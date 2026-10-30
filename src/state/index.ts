@@ -1,6 +1,7 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit'
 import { authReducer, startChatAuth } from './auth'
 import { harnessReducer } from './harness'
+import { networkErrorHistoryReducer } from './networkErrors'
 import { startUsagePolling, usageReducer } from './usage'
 
 const ui = createSlice({
@@ -16,7 +17,7 @@ const ui = createSlice({
 export const { setReady } = ui.actions
 
 export const store = configureStore({
-  reducer: { ui: ui.reducer, auth: authReducer, harness: harnessReducer, usage: usageReducer }
+  reducer: { ui: ui.reducer, auth: authReducer, harness: harnessReducer, usage: usageReducer, networkErrorHistory: networkErrorHistoryReducer }
 })
 
 export type RootState = ReturnType<typeof store.getState>

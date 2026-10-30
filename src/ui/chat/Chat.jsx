@@ -16,17 +16,18 @@ function loopProgress(status) {
   return status === "idle" ? 0 : 100;
 }
 
-// Prompt, Send/Stop, and a CRT screen the reply is typed into.
+// Gemini rate bar, prompt, Send/Stop, and a CRT screen the reply is typed into.
 // onSend(prompt, signal) resolves to the answer text; without it, Send stays disabled.
-/** @param {{ onSend?: (prompt: string, signal: AbortSignal) => Promise<string> }} props */
-export default function Chat({ onSend = undefined }) {
+// usage: calls in the shared Gemini rate window, its limit, and whether Send is locked.
+/** @param {{ onSend?: (prompt: string, signal: AbortSignal) => Promise<string>, usage?: { used: number, limit: number, locked: boolean } }} props */
+export default function Chat({ onSend = undefined, usage = { used: 0, limit: 10, locked: false } }) {
   const [status, setStatus] = useState("idle");
   const busy = status === "running";
   const [prompt, setPrompt] = useState("");
   const [reply, setReply] = useState("");
   const typeTimer = useRef(null);
   const abort = useRef(null);
-  const canSend = Boolean(onSend) && !busy;
+  const canSend = Boolean(onSend) && !busy && !usage.locked;
 
   function typeOut(text) {
     clearInterval(typeTimer.current);
@@ -64,6 +65,9 @@ export default function Chat({ onSend = undefined }) {
 
   return (
     <div className="llm">
+      <div className="progress">
+        <PixelBar label="Rate" value={usage.used} max={usage.limit} />
+      </div>
       <PromptInput
         rows={4}
         value={prompt}

@@ -43,7 +43,7 @@
 
 .llm .pixelbar-value {
   flex: none;
-  width: 4ch;
+  width: 5ch;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

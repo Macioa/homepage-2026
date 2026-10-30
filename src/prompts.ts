@@ -25,6 +25,8 @@ Keys: ${keys.join(', ')}`
 
 export const FINAL_REPLY = 'Write the final reply to the visitor from the data above. Plain text, no tool calls.'
 
+export const TOKEN_NOT_READY = 'Data access not ready. Try again.'
+
 export const TOOL = {
   finishAndReply: 'end the tool loop and write the final reply',
   resetContext: 'clear the context, then choose which saved state to load back',

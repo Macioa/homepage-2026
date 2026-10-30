@@ -1,6 +1,9 @@
-// A harness run: the store and one abort signal for the user's stop or the timeout.
+// A harness run: the store and one abort signal for the user's stop or the timeout. Its model calls all
+// go through callLoggedModel, so each one is logged in the Gemini rate window (state/usage.ts) first.
 
+import { callModel, type ModelRequest } from '../connections/gemini'
 import type { AppDispatch, RootState } from '../state'
+import { logGeminiRequest } from '../state/usage'
 
 const HARNESS_TIMEOUT_MS = 60_000
 
@@ -11,3 +14,9 @@ export type Run = { store: HarnessStore; signal: AbortSignal }
 const withTimeout = (signal: AbortSignal) => AbortSignal.any([signal, AbortSignal.timeout(HARNESS_TIMEOUT_MS)])
 
 export const createRun = (store: HarnessStore, signal: AbortSignal): Run => ({ store, signal: withTimeout(signal) })
+
+// Logs the call, then makes it; a failed log stops the call, so none goes uncounted.
+export async function callLoggedModel(request: ModelRequest, { store, signal }: Run) {
+  await store.dispatch(logGeminiRequest()).unwrap()
+  return callModel(request, signal)
+}

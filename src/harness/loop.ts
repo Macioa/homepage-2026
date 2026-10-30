@@ -1,13 +1,13 @@
 // The tool loop: one model turn with every tool, its calls run, then the next step. Repeats until
 // finish_and_reply, or a second no_appropriate_tool, then writes the final reply.
 
-import { callModel, type ToolCall } from '../connections/gemini'
+import type { ToolCall } from '../connections/gemini'
 import * as PROMPTS from '../prompts'
 import type { RootState } from '../state'
 import { selectToolCall } from '../state/harness'
 import { finishAndReply, noAppropriateTool, resetContext, TOOL_SPECS } from '../tools'
 import { humanMessage, reloadContext, type Context } from './context'
-import type { Run } from './run'
+import { callLoggedModel, type Run } from './run'
 import { runToolCalls, toCallKey } from './toolCall'
 
 // The model must call a tool every turn; the loop only ends through finish_and_reply or no_appropriate_tool.
@@ -34,14 +34,14 @@ function pickAction(toolCalls: ToolCall[], state: RootState): Action {
 }
 
 async function takeTurn(context: Context, run: Run) {
-  const { message, toolCalls } = await callModel({ messages: context, tools: TOOL_SPECS, toolChoice: LOOP_TOOL_CHOICE }, run.signal)
+  const { message, toolCalls } = await callLoggedModel({ messages: context, tools: TOOL_SPECS, toolChoice: LOOP_TOOL_CHOICE }, run)
   const action = pickAction(toolCalls, run.store.getState())
   const results = await runToolCalls(toolCalls, run)
   return { action, context: [...context, message, ...results] }
 }
 
-async function writeFinalReply(context: Context, signal: AbortSignal) {
-  const { text } = await callModel({ messages: context, tools: TOOL_SPECS, toolChoice: FINAL_TOOL_CHOICE }, signal)
+async function writeFinalReply(context: Context, run: Run) {
+  const { text } = await callLoggedModel({ messages: context, tools: TOOL_SPECS, toolChoice: FINAL_TOOL_CHOICE }, run)
   return text
 }
 
@@ -50,7 +50,7 @@ export async function toolLoop(context: Context, run: Run): Promise<string> {
   const turn = await takeTurn(context, run)
   switch (turn.action) {
     case 'finish_and_reply':
-      return writeFinalReply(turn.context, run.signal)
+      return writeFinalReply(turn.context, run)
     case 'reset_context':
       return toolLoop(await reloadContext(run), run)
     case 'no_tool_call':

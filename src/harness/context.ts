@@ -1,11 +1,11 @@
 // The LLM context: messages in LangChain's stored format, a cleared context, and the reset_context reload.
 
 import { z } from 'zod'
-import { callModel, type ModelRequest, type StoredMessage, type ToolCall } from '../connections/gemini'
+import type { ModelRequest, StoredMessage, ToolCall } from '../connections/gemini'
 import * as PROMPTS from '../prompts'
 import { selectStateKeys, selectStateValues } from '../state/harness'
 import { toToolSpec } from '../tools'
-import type { Run } from './run'
+import { callLoggedModel, type Run } from './run'
 
 const SELECT_TOOL_NAME = 'select_keys'
 const SELECT_TOOL_CHOICE = 'any'
@@ -35,14 +35,15 @@ const selectTool = (keys: string[]) =>
 const readKeys = (call?: ToolCall) => (call?.args.keys as string[] | undefined) ?? []
 
 // In a cleared context, the LLM picks which state keys to load, through a forced select_keys call.
-async function selectKeys(keys: string[], signal: AbortSignal) {
+async function selectKeys(keys: string[], run: Run) {
   const request: ModelRequest = { messages: freshContext(PROMPTS.selectKeys(keys)), tools: [selectTool(keys)], toolChoice: SELECT_TOOL_CHOICE }
-  const { toolCalls: [call] } = await callModel(request, signal)
+  const { toolCalls: [call] } = await callLoggedModel(request, run)
   return readKeys(call)
 }
 
 // reset_context: drops the context and starts a new one with the values of the keys the LLM chose.
-export async function reloadContext({ store, signal }: Run) {
-  const chosen = await selectKeys(selectStateKeys(store.getState()), signal)
+export async function reloadContext(run: Run) {
+  const { store } = run
+  const chosen = await selectKeys(selectStateKeys(store.getState()), run)
   return freshContext(JSON.stringify(selectStateValues(store.getState(), chosen)))
 }

@@ -1,12 +1,12 @@
 // Matrix-style progress bar: pixel blocks inside an open frame.
-// value: 0-max, or null for an indeterminate scan. max 100 reads as a percentage, any other as value/max.
-export default function PixelBar({ label, value, max = 100 }) {
+// value: 0-max, or null for an indeterminate scan. hideLabel keeps the label for screen readers only.
+export default function PixelBar({ label, value, max = 100, hideLabel = false }) {
   const scanning = value === null;
   const shown = scanning ? 0 : Math.min(Math.round(value), max);
   const pct = (shown / max) * 100;
   return (
     <div className="pixelbar">
-      <span className="pixelbar-label">{label}</span>
+      {!hideLabel && <span className="pixelbar-label">{label}</span>}
       <span
         className={`pixelbar-frame${scanning ? " scanning" : ""}`}
         role="progressbar"
@@ -17,7 +17,6 @@ export default function PixelBar({ label, value, max = 100 }) {
       >
         <span className="pixelbar-fill" style={scanning ? undefined : { width: `${pct}%` }} />
       </span>
-      <span className="pixelbar-value">{scanning ? "..." : max === 100 ? `${shown}%` : `${shown}/${max}`}</span>
     </div>
   );
 }

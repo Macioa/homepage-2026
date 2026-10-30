@@ -2,10 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import PixelBar from "./PixelBar.jsx";
 import CrtFrame from "./CrtFrame.jsx";
 import PromptInput from "./PromptInput.jsx";
+import { TOOLS } from "../../tools";
 import "./chat.css";
 
+// Example prompts from the tools that have one.
+const EXAMPLES = TOOLS.flatMap((tool) => (tool.examplePrompt ? [`- ${tool.examplePrompt}`] : []));
 const GREETING =
-  "Wake up, visitor... Follow the white rabbit. I'm Ryan's resume assistant. Ask me about Ryan's career experience.";
+  "Wake up, visitor... I'm Ryan's resume assistant. Ask me about Ryan's career experience." +
+  `\n\n\nExamples:\n${EXAMPLES.join("\n")}`;
 // Small chunks at a steady pace, so typed text feeds like a reply.
 const TYPE_CHUNK = /\S{1,4}\s*|\s+/g;
 const TYPE_MS = 45;
@@ -66,7 +70,7 @@ export default function Chat({ onSend = undefined, usage = { used: 0, limit: 10,
   return (
     <div className="llm">
       <div className="progress">
-        <PixelBar label="Rate" value={usage.used} max={usage.limit} />
+        <PixelBar label="Throttle" value={usage.used} max={usage.limit} />
       </div>
       <PromptInput
         rows={4}
@@ -87,7 +91,7 @@ export default function Chat({ onSend = undefined, usage = { used: 0, limit: 10,
         <pre className="reply">{busy ? "> thinking..." : reply}</pre>
       </CrtFrame>
       <div className="progress">
-        <PixelBar label="Loop" value={loopProgress(status)} />
+        <PixelBar label="Loop" hideLabel value={loopProgress(status)} />
       </div>
     </div>
   );

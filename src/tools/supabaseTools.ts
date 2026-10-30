@@ -22,6 +22,7 @@ export const getAllSkills: DataTool = {
   name: 'get_all_skills',
   description: TOOL.getAllSkills,
   args: z.object({}),
+  examplePrompt: "What are Ryan's top skills?",
   run: (_args, ctx) => rpc('get_all_skills', {}, ctx)
 }
 
@@ -31,6 +32,7 @@ export const getSkill: DataTool<typeof skillArgs> = {
   name: 'get_skill',
   description: TOOL.getSkill,
   args: skillArgs,
+  examplePrompt: 'How long has Ryan worked with distributed systems?',
   run: ({ skill, mode }, ctx) => rpc('get_skill', { p_skill: skill, ...(mode && { p_mode: mode }) }, ctx)
 }
 

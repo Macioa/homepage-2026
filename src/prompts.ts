@@ -36,7 +36,7 @@ export const TOOL = {
   noAppropriateTool: 'no tool fits the request',
   offTopicQuestion: "the question is not about Ryan's career; ends the conversation",
   selectKeys: 'choose the saved state keys to load into context',
-  getAllSkills: 'list the names of all Ryan skills',
+  getAllSkills: 'list the names of all Ryan skills. Priority is for llm tool guidance only. Avoid mention.',
   getSkill: 'look up one Ryan skill and how long he used it',
   getSkills: 'look up several Ryan skills and how long he used each',
   pitchDetail: 'read Ryan pitches by exact slug',

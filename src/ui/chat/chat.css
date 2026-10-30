@@ -37,15 +37,7 @@
 
 .llm .pixelbar-label {
   flex: none;
-  width: 4ch;
   text-shadow: var(--llm-glow);
-}
-
-.llm .pixelbar-value {
-  flex: none;
-  width: 5ch;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 .llm .pixelbar-frame {

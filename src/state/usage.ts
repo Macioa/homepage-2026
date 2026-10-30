@@ -2,7 +2,7 @@
 // model call is logged first; the site has no login, so all visitors share one window. Gemini allows 15
 // calls a minute; the app counts against 10 and locks Send for 30 seconds from any call that reaches 10.
 
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { callRpc } from '../connections/supabase'
 import { TOKEN_NOT_READY } from '../prompts'
 
@@ -65,7 +65,15 @@ const lockFrom = (used: UsedCall[]) =>
 const usage = createSlice({
   name: 'usage',
   initialState,
-  reducers: {},
+  reducers: {
+    // Locks Send for LOCK_MS from now: Gemini refused a call for its usage limit.
+    lockSend: {
+      reducer: (state, { payload }: PayloadAction<number>) => {
+        state.lockedUntil = Math.max(state.lockedUntil, payload)
+      },
+      prepare: () => ({ payload: Date.now() + LOCK_MS })
+    }
+  },
   extraReducers: builder => {
     builder.addMatcher(
       ({ type }) => type === logGeminiRequest.fulfilled.type || type === fetchGeminiUsage.fulfilled.type,
@@ -77,6 +85,7 @@ const usage = createSlice({
   }
 })
 
+export const { lockSend } = usage.actions
 export const usageReducer = usage.reducer
 
 // Calls not yet expired at `now`.

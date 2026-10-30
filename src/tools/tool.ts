@@ -5,12 +5,15 @@ import type { ToolSpec } from '../connections/gemini'
 
 export type FunctionalTool = { kind: 'functional'; name: string; description: string; args: z.ZodObject }
 
+// What a data tool gets besides its args: the Supabase chat JWT from redux (null until fetched) and the run's abort signal.
+export type ToolContext = { token: string | null; signal: AbortSignal }
+
 export type DataTool<A extends z.ZodObject = z.ZodObject> = {
   kind: 'data'
   name: string
   description: string
   args: A
-  run(args: z.infer<A>): Promise<unknown>
+  run(args: z.infer<A>, ctx: ToolContext): Promise<unknown>
 }
 
 export type Tool = FunctionalTool | DataTool

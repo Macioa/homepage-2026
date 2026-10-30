@@ -7,9 +7,10 @@
 [build.environment]
   NODE_VERSION = "24"
 
-# `netlify dev`: Vite plus the functions in netlify/functions, with the site env vars injected
+# `netlify dev`: Vite plus the functions in netlify/functions, with the site env vars injected.
+# Served on 5173 (the origin get-llm-token allows); Vite runs behind it on 5174.
 [dev]
-  command = "npm run dev"
-  targetPort = 5173
-  port = 8888
+  command = "npm run dev -- --port 5174 --strictPort"
+  targetPort = 5174
+  port = 5173
   autoLaunch = false

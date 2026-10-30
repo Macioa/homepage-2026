@@ -3,6 +3,13 @@
 
 const ENDPOINT = '/api/chat'
 const HEADERS = { 'Content-Type': 'application/json' }
+// The chat function passes Gemini's 429 through when the usage limit is reached.
+const USAGE_LIMIT_STATUS = 429
+
+// Gemini refused the call: usage limit reached. The harness locks Send on it.
+export class UsageLimitError extends Error {
+  name = 'UsageLimitError'
+}
 
 export type StoredMessage = { type: string; data: Record<string, unknown> }
 
@@ -21,6 +28,7 @@ const readBody = (res: Response) => res.json().catch(() => ({}))
 export async function callModel(request: ModelRequest, signal: AbortSignal): Promise<ModelReply> {
   const res = await fetch(ENDPOINT, { method: 'POST', headers: HEADERS, body: JSON.stringify(request), signal })
   const body = await readBody(res)
+  if (res.status === USAGE_LIMIT_STATUS) throw new UsageLimitError(body.error ?? `chat ${res.status}`)
   if (!res.ok) throw new Error(body.error ?? `chat ${res.status}`)
   return body
 }

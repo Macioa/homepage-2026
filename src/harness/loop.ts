@@ -1,6 +1,6 @@
 // The tool loop: one model turn with every tool, its calls run, then the next step. Repeats until
 // finish_and_reply, whose reply arg is the final reply, or a second no_appropriate_tool, which has the
-// final reply written in one more call. off_topic_question
+// final reply written in one more call, or TOOL_CALL_LIMIT tool calls, likewise. off_topic_question
 // cancels the loop at once with a fixed reply.
 
 import type { ToolCall } from '../connections/gemini'
@@ -18,6 +18,8 @@ const LOOP_TOOL_CHOICE = 'any'
 const FINAL_TOOL_CHOICE = 'none'
 // off_topic_question's reply, shown as is; never sent to the LLM.
 const OFF_TOPIC_REPLY = "That's not what i'm here for"
+// Tool calls a run may make. Checked after each turn, so the turn that reaches it runs all its calls.
+const TOOL_CALL_LIMIT = 9
 
 type Action = 'off_topic' | 'finish_and_reply' | 'reset_context' | 'no_tool_call' | 'continue'
 
@@ -61,19 +63,22 @@ async function writeFinalReply(context: Context, run: Run) {
   return text
 }
 
-export async function toolLoop(context: Context, run: Run): Promise<string> {
+export async function toolLoop(context: Context, run: Run, callsMade = 0): Promise<string> {
   run.signal.throwIfAborted()
   const turn = await takeTurn(context, run)
-  switch (turn.action) {
+  const calls = callsMade + turn.toolCalls.length
+  // At the limit the loop finishes; without a finish_and_reply call the final reply is written in one more call.
+  const action = calls >= TOOL_CALL_LIMIT && turn.action !== 'off_topic' ? 'finish_and_reply' : turn.action
+  switch (action) {
     case 'off_topic':
       return OFF_TOPIC_REPLY
     case 'finish_and_reply':
       return finishedReply(turn.toolCalls) ?? writeFinalReply(turn.context, run)
     case 'reset_context':
-      return toolLoop(await reloadContext(run), run)
+      return toolLoop(await reloadContext(run), run, calls)
     case 'no_tool_call':
-      return toolLoop([...turn.context, humanMessage(PROMPTS.NO_TOOL_CALL)], run)
+      return toolLoop([...turn.context, humanMessage(PROMPTS.NO_TOOL_CALL)], run, calls)
     case 'continue':
-      return toolLoop(turn.context, run)
+      return toolLoop(turn.context, run, calls)
   }
 }

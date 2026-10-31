@@ -7,6 +7,7 @@
 //            no_appropriate_tool goes to state and the loop continues; selected again, it ends the loop
 //            finish_and_reply ends the loop; its reply arg is the final response (written in one more call if unusable)
 //            off_topic_question cancels the loop; the reply is a fixed message, not the LLM's
+//   limit    after 9 tool calls (TOOL_CALL_LIMIT) the loop ends and the final reply is written
 //   throttle once the rate window is full, a model call waits until at least 2 slots are free
 //   failure  a failed Supabase connection stops all model calls; the reply is a fixed message, not the LLM's
 //            Gemini's usage limit disables Send for 30 seconds

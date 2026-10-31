@@ -1,5 +1,5 @@
 // Network error history, recorded on error: each connection takes an onError from its caller and calls it through
-// logNetworkError where a request fails (state/networkErrors.ts builds it). Aborts (user stop, harness timeout) are not failures.
+// logNetworkError where a request fails (state/networkErrors.ts builds it). Aborts (user stop) are not failures.
 
 // netlify: the chat function or the platform around it failed (unreachable, crashed, killed at its time limit).
 // gemini: the Gemini call inside the chat function failed. supabase: PostgREST or the token edge function could

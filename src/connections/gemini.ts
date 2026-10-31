@@ -9,6 +9,8 @@ const ENDPOINT = '/api/chat'
 const HEADERS = { 'Content-Type': 'application/json' }
 // The chat function passes Gemini's 429 through when the usage limit is reached.
 const USAGE_LIMIT_STATUS = 429
+// The chat function passes Gemini's 503 through when the model is overloaded ("high demand").
+const UNAVAILABLE_STATUS = 503
 // Netlify answers 504 when it gives up on a function; netlify dev answers 500 with "TimeoutError: Task timed out".
 // A 502 (the function crashed) is not a timeout, so it isn't retried.
 const GATEWAY_TIMEOUT_STATUS = 504
@@ -23,6 +25,11 @@ export class UsageLimitError extends Error {
 // The Gemini call or the chat function ran out of time. The harness retries it (harness/run.ts).
 export class ModelTimeoutError extends Error {
   name = 'ModelTimeoutError'
+}
+
+// Gemini is overloaded. The harness waits, then retries it (harness/run.ts).
+export class ModelUnavailableError extends Error {
+  name = 'ModelUnavailableError'
 }
 
 export type StoredMessage = { type: string; data: Record<string, unknown> }
@@ -55,6 +62,7 @@ function failedKind(status: number, body: TaggedError, text: string): NetworkErr
 
 function failedError(status: number, kind: NetworkErrorKind, message: string) {
   if (status === USAGE_LIMIT_STATUS) return new UsageLimitError(message)
+  if (status === UNAVAILABLE_STATUS) return new ModelUnavailableError(message)
   return kind === 'timeout' ? new ModelTimeoutError(message) : new Error(message)
 }
 

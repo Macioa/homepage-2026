@@ -13,6 +13,7 @@
 //            Gemini's usage limit disables Send for 30 seconds
 //            a model call that timed out in Netlify or Gemini is retried up to 3 times, each one logged
 //            in the rate window; no retry once the window is locked
+//            an overloaded Gemini (503) is retried the same way, after a 30 second wait
 //   errors   every failed external request is kept in redux under networkErrorHistory (state/networkErrors.ts)
 
 import { freshContext } from './context'

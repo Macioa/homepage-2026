@@ -4,7 +4,7 @@
 // history keeps the last 100.
 
 import { afterEach, expect, test, vi } from 'vitest'
-import { callModel, ModelTimeoutError, type ModelRequest } from '../connections/gemini'
+import { callModel, ModelTimeoutError, ModelUnavailableError, type ModelRequest } from '../connections/gemini'
 import { store } from '.'
 import { networkErrorHistoryReducer, onNetworkError, recordNetworkError, type NetworkErrorRecord } from './networkErrors'
 
@@ -50,6 +50,13 @@ test('a tagged Gemini error is not a timeout', async () => {
   respond(500, JSON.stringify({ error: 'bad request', source: 'gemini', timeout: false }))
   await expect(callModel(request, live(), onError)).rejects.not.toBeInstanceOf(ModelTimeoutError)
   expect(latest()).toMatchObject({ source: 'gemini', kind: 'http', message: 'bad request' })
+})
+
+test("Gemini's overloaded 503 is unavailable, not a timeout, and recorded as Gemini", async () => {
+  const error = '[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com: [503 Service Unavailable] high demand'
+  respond(503, JSON.stringify({ error, source: 'gemini', timeout: false }))
+  await expect(callModel(request, live(), onError)).rejects.toBeInstanceOf(ModelUnavailableError)
+  expect(latest()).toMatchObject({ source: 'gemini', kind: 'http', status: 503, message: error })
 })
 
 test('an abort (deadline or user stop) is not recorded', async () => {

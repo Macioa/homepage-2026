@@ -1,6 +1,6 @@
 // The chat function (functions/chat.mts), with Gemini mocked. Kept out of netlify/functions, where Netlify would
 // deploy it as a function. Errors are tagged by source: 'netlify' for the key and reading the request (messages,
-// tools), 'gemini' for the model call; a Gemini timeout is a 504, its usage limit a 429.
+// tools), 'gemini' for the model call; a Gemini timeout is a 504, its usage limit a 429, its overload a 503.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import chat from './functions/chat.mts'
@@ -72,6 +72,16 @@ test('a Gemini error is gemini', async () => {
 test("Gemini's usage-limit 429 passes through", async () => {
   invoke.mockRejectedValue(Object.assign(new Error('quota'), { status: 429 }))
   expect(await answer(await send({ messages: [human] }))).toEqual({ status: 429, body: { error: 'quota', source: 'gemini', timeout: false } })
+})
+
+test("Gemini's overloaded 503 passes through", async () => {
+  invoke.mockRejectedValue(Object.assign(new Error('high demand'), { status: 503 }))
+  expect(await answer(await send({ messages: [human] }))).toEqual({ status: 503, body: { error: 'high demand', source: 'gemini', timeout: false } })
+})
+
+test('other Gemini statuses stay a 500', async () => {
+  invoke.mockRejectedValue(Object.assign(new Error('bad'), { status: 400 }))
+  expect(await answer(await send({ messages: [human] }))).toMatchObject({ status: 500, body: { source: 'gemini' } })
 })
 
 test('a Gemini call past the time limit is a 504 timeout', async () => {

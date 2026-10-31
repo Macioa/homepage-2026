@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 // callLoggedModel: a timed-out model call is retried up to 3 times, each retry logged in the rate window;
-// no retry once the window is locked, and none for other errors. Once the window is full a call waits until
-// 2 slots are free. createRun adds no timeout to the run's signal.
+// no retry once the window is locked, and none for other errors. An overloaded Gemini (503) is retried the
+// same way after a 30 second wait. Once the window is full a call waits until 2 slots are free. createRun
+// adds no timeout to the run's signal.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { callModel, ModelTimeoutError } from '../connections/gemini'
+import { callModel, ModelTimeoutError, ModelUnavailableError } from '../connections/gemini'
 import { USAGE_LIMIT, type UsedCall } from '../state/usage'
 import { callLoggedModel, createRun, type HarnessStore } from './run'
 
@@ -57,6 +58,47 @@ test('no retry once the rate window is locked', async () => {
 test('no retry for other errors', async () => {
   model.mockRejectedValue(new Error('bad'))
   await expect(callLoggedModel(request, run())).rejects.toThrow('bad')
+  expect(model).toHaveBeenCalledTimes(1)
+})
+
+test('an overloaded Gemini is retried after 30 seconds, each attempt logged', async () => {
+  vi.useFakeTimers()
+  model.mockRejectedValueOnce(new ModelUnavailableError('503')).mockResolvedValueOnce(reply)
+  const result = callLoggedModel(request, run())
+  await vi.advanceTimersByTimeAsync(29_999)
+  expect(model).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(1)
+  await expect(result).resolves.toBe(reply)
+  expect(model).toHaveBeenCalledTimes(2)
+  expect(dispatch).toHaveBeenCalledTimes(2)
+})
+
+test('an overloaded Gemini gives up after 3 retries', async () => {
+  vi.useFakeTimers()
+  model.mockRejectedValue(new ModelUnavailableError('503'))
+  const result = callLoggedModel(request, run())
+  const settled = expect(result).rejects.toBeInstanceOf(ModelUnavailableError)
+  await vi.advanceTimersByTimeAsync(3 * 30_000)
+  await settled
+  expect(model).toHaveBeenCalledTimes(4)
+})
+
+test('no 503 retry once the rate window is locked', async () => {
+  lockedUntil = Date.now() + 60_000
+  model.mockRejectedValue(new ModelUnavailableError('503'))
+  await expect(callLoggedModel(request, run())).rejects.toBeInstanceOf(ModelUnavailableError)
+  expect(model).toHaveBeenCalledTimes(1)
+})
+
+test('Stop during the 503 wait aborts without another call', async () => {
+  vi.useFakeTimers()
+  model.mockRejectedValue(new ModelUnavailableError('503'))
+  const stop = new AbortController()
+  const result = callLoggedModel(request, run(stop.signal))
+  const settled = expect(result).rejects.toThrow('stopped')
+  await vi.advanceTimersByTimeAsync(10_000)
+  stop.abort(new Error('stopped'))
+  await settled
   expect(model).toHaveBeenCalledTimes(1)
 })
 

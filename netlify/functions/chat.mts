@@ -11,6 +11,9 @@ const MODEL = 'gemini-3.1-flash-lite'
 // No retries: LangChain would wait out a 429, so the usage limit would stall the run instead of reaching the browser.
 const MAX_RETRIES = 0
 const USAGE_LIMIT_STATUS = 429
+// Gemini is overloaded ("high demand"); the browser waits and retries.
+const UNAVAILABLE_STATUS = 503
+const PASSED_THROUGH = [USAGE_LIMIT_STATUS, UNAVAILABLE_STATUS]
 const ERROR_STATUS = 500
 const TIMEOUT_STATUS = 504
 // Under netlify dev's 30-second function limit, so a stalled Gemini call is cancelled and answered here
@@ -26,10 +29,11 @@ const createModel = () => new ChatGoogleGenerativeAI({ model: MODEL, apiKey: pro
 
 const timedOut = (signal: AbortSignal) => signal.reason?.name === 'TimeoutError'
 
-// A timed-out call is a 504; Gemini's usage-limit 429 passes through; anything else is a 500.
+// A timed-out call is a 504; Gemini's usage-limit 429 and overloaded 503 pass through; anything else is a 500.
 function errorStatus(err: unknown, signal: AbortSignal) {
   if (timedOut(signal)) return TIMEOUT_STATUS
-  return (err as { status?: number }).status === USAGE_LIMIT_STATUS ? USAGE_LIMIT_STATUS : ERROR_STATUS
+  const { status } = err as { status?: number }
+  return status && PASSED_THROUGH.includes(status) ? status : ERROR_STATUS
 }
 
 const errorResponse = (error: string, source: ErrorSource, status: number, timeout = false) => Response.json({ error, source, timeout }, { status })

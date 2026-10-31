@@ -2,14 +2,16 @@
 // callLoggedModel, so each one (retries included) waits out a full rate window, then is logged in the
 // Gemini rate window (state/usage.ts) first.
 
-import { callModel, ModelTimeoutError, type ModelRequest } from '../connections/gemini'
+import { callModel, ModelTimeoutError, ModelUnavailableError, type ModelRequest } from '../connections/gemini'
 import { DataAccessError } from '../connections/supabase'
 import type { AppDispatch, RootState } from '../state'
 import { onNetworkError } from '../state/networkErrors'
 import { logGeminiRequest, selectActiveCalls, selectSendLocked, USAGE_LIMIT } from '../state/usage'
 
-// Retries of a model call that timed out in Netlify or Gemini.
-const LLM_TIMEOUT_RETRIES = 3
+// Retries of a model call that timed out in Netlify or Gemini, or found Gemini overloaded.
+const LLM_RETRIES = 3
+// An overloaded Gemini (503) is retried after this wait.
+const UNAVAILABLE_WAIT_MS = 30_000
 // Once the rate window is full, a model call waits until at least this many slots are free.
 const FREE_SLOTS = 2
 
@@ -54,11 +56,14 @@ async function logRequest({ store }: Run) {
   }
 }
 
-// A timed-out call is retried while retries are left, the run is live and the rate window isn't locked.
+const retryable = (error: unknown) => error instanceof ModelTimeoutError || error instanceof ModelUnavailableError
+
+// A timed-out or overloaded call is retried while retries are left, the run is live and the rate window isn't locked.
 const canRetry = (error: unknown, { store, signal }: Run, retriesLeft: number) =>
-  error instanceof ModelTimeoutError && retriesLeft > 0 && !signal.aborted && !selectSendLocked(store.getState(), Date.now())
+  retryable(error) && retriesLeft > 0 && !signal.aborted && !selectSendLocked(store.getState(), Date.now())
 
 // Waits for free slots, logs the call, then makes it; a failed log stops the call, so none goes uncounted.
+// An overloaded Gemini is given UNAVAILABLE_WAIT_MS before the retry.
 async function callWithRetries(request: ModelRequest, run: Run, retriesLeft: number): ReturnType<typeof callModel> {
   await waitForSlots(run)
   await logRequest(run)
@@ -66,8 +71,9 @@ async function callWithRetries(request: ModelRequest, run: Run, retriesLeft: num
     return await callModel(request, run.signal, onNetworkError(run.store.dispatch))
   } catch (error) {
     if (!canRetry(error, run, retriesLeft)) throw error
+    if (error instanceof ModelUnavailableError) await sleep(UNAVAILABLE_WAIT_MS, run.signal)
     return callWithRetries(request, run, retriesLeft - 1)
   }
 }
 
-export const callLoggedModel = (request: ModelRequest, run: Run) => callWithRetries(request, run, LLM_TIMEOUT_RETRIES)
+export const callLoggedModel = (request: ModelRequest, run: Run) => callWithRetries(request, run, LLM_RETRIES)

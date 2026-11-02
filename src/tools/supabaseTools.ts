@@ -9,7 +9,8 @@ const mode = z.enum(['precise', 'start_to_end']).describe(TOOL_ARG.mode)
 
 const skillArgs = z.object({ skill: z.string().describe(TOOL_ARG.skill), mode: mode.optional() })
 const skillsArgs = z.object({ skills: z.array(z.string()).describe(TOOL_ARG.skills), mode: mode.optional() })
-const pitchArgs = z.object({ slugs: z.array(z.string()).describe(TOOL_ARG.slugs), mode })
+const pitchesArgs = z.object({ slugs: z.array(z.string()).describe(TOOL_ARG.slugs) })
+const pitchArgs = pitchesArgs.extend({ mode })
 const faqArgs = z.object({ slug: z.string().describe(TOOL_ARG.faqSlug) })
 const faqsArgs = z.object({ slugs: z.array(z.string()).describe(TOOL_ARG.faqSlugs) })
 const messageArgs = z.object({
@@ -51,8 +52,25 @@ export const getSkills: DataTool<typeof skillsArgs> = {
   run: ({ skills, mode }, ctx) => rpc('get_skills', { p_skills: skills, ...(mode && { p_mode: mode }) }, ctx)
 }
 
-// Material, skills and evidence for named pitches (public.pitch_detail). Nothing the model can call
-// lists slugs, so it only helps when the slug is already known.
+// Slug, type, title and when to use every pitch, no material (public.get_all_pitches).
+export const getAllPitches: DataTool = {
+  kind: 'data',
+  name: 'get_all_pitches',
+  description: TOOL.getAllPitches,
+  args: z.object({}),
+  run: (_args, ctx) => rpc('get_all_pitches', {}, ctx)
+}
+
+// Material and keywords for named pitches, without skills or evidence (public.get_pitches).
+export const getPitches: DataTool<typeof pitchesArgs> = {
+  kind: 'data',
+  name: 'get_pitches',
+  description: TOOL.getPitches,
+  args: pitchesArgs,
+  run: ({ slugs }, ctx) => rpc('get_pitches', { p_slugs: slugs }, ctx)
+}
+
+// Material, skills and evidence for named pitches (public.pitch_detail).
 export const pitchDetail: DataTool<typeof pitchArgs> = {
   kind: 'data',
   name: 'pitch_detail',

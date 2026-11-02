@@ -1,6 +1,8 @@
-// The chat function (functions/chat.mts), with Gemini mocked. Kept out of netlify/functions, where Netlify would
-// deploy it as a function. Errors are tagged by source: 'netlify' for the key and reading the request (messages,
-// tools), 'gemini' for the model call; a Gemini timeout is a 504, its usage limit a 429, its overload a 503.
+// The chat function (functions/chat.mts), with Gemini and Supabase mocked. Kept out of netlify/functions, where
+// Netlify would deploy it as a function. Each call is logged in the rate window with the caller's chat JWT first: no
+// token or a refused one is a 401, a full window a 429, and Gemini is never called. Errors are tagged by source:
+// 'netlify' for the config, token, window and reading the request (messages, tools), 'gemini' for the model call;
+// a Gemini timeout is a 504, its usage limit a 429, its overload a 503.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import chat from './functions/chat.mts'
@@ -17,18 +19,27 @@ vi.mock('@langchain/google-genai', () => ({
 const human = { type: 'human', data: { content: 'hi' } }
 const reply = { toDict: () => ({ type: 'ai', data: { content: 'ok' } }), text: 'ok', tool_calls: [] }
 
-const post = (body: string) => chat(new Request('http://localhost/api/chat', { method: 'POST', body }))
+const BEARER = 'Bearer chat-jwt'
+const headers = { Authorization: BEARER }
+const post = (body: string, init: RequestInit = { headers }) => chat(new Request('http://localhost/api/chat', { method: 'POST', body, ...init }))
+// The rate window's answer to log_gemini_request: `calls` calls in it, this one included.
+const windowOf = (calls: number) => Response.json({ now: new Date().toISOString(), used: Array.from({ length: calls }, (_, id) => ({ id })) })
+const supabase = vi.fn()
 const send = (request: Record<string, unknown>) => post(JSON.stringify(request))
 const answer = async (res: Response) => ({ status: res.status, body: await res.json() })
 
 beforeEach(() => {
   vi.stubEnv('GEMINI_API_KEY', 'key')
+  vi.stubEnv('VITE_SUPABASE_URL', 'https://db.test')
+  vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'publishable')
+  vi.stubGlobal('fetch', supabase.mockReset().mockImplementation(async () => windowOf(1)))
   invoke.mockReset()
   bindTools.mockReset().mockReturnValue({ invoke })
 })
 
 afterEach(() => {
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
@@ -89,4 +100,54 @@ test('a Gemini call past the time limit is a 504 timeout', async () => {
   vi.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort(new DOMException('timed out', 'TimeoutError')))
   invoke.mockImplementation(async (_messages: unknown, { signal }: { signal: AbortSignal }) => signal.throwIfAborted())
   expect(await answer(await send({ messages: [human] }))).toMatchObject({ status: 504, body: { source: 'gemini', timeout: true } })
+})
+
+test("the call is logged in the rate window with the caller's token", async () => {
+  invoke.mockResolvedValue(reply)
+  await send({ messages: [human] })
+  expect(supabase).toHaveBeenCalledWith('https://db.test/rest/v1/rpc/log_gemini_request', expect.objectContaining({ method: 'POST' }))
+  expect(supabase.mock.calls[0][1].headers).toMatchObject({ apikey: 'publishable', Authorization: BEARER })
+})
+
+test('no token is a 401, and neither the window nor Gemini is reached', async () => {
+  expect(await answer(await post(JSON.stringify({ messages: [human] }), {}))).toEqual({
+    status: 401,
+    body: { error: 'no chat token', source: 'netlify', timeout: false }
+  })
+  expect(supabase).not.toHaveBeenCalled()
+  expect(invoke).not.toHaveBeenCalled()
+})
+
+test('a token PostgREST refuses is a 401, and Gemini is never called', async () => {
+  supabase.mockResolvedValue(Response.json({ message: 'JWSError JWSInvalidSignature' }, { status: 401 }))
+  expect(await answer(await send({ messages: [human] }))).toEqual({
+    status: 401,
+    body: { error: 'JWSError JWSInvalidSignature', source: 'netlify', timeout: false }
+  })
+  expect(invoke).not.toHaveBeenCalled()
+})
+
+test('a window at the limit still calls Gemini; one past it is a 429', async () => {
+  invoke.mockResolvedValue(reply)
+  supabase.mockResolvedValueOnce(windowOf(10))
+  expect((await send({ messages: [human] })).status).toBe(200)
+  supabase.mockResolvedValueOnce(windowOf(11))
+  expect(await answer(await send({ messages: [human] }))).toEqual({
+    status: 429,
+    body: { error: 'usage limit reached', source: 'netlify', timeout: false }
+  })
+  expect(invoke).toHaveBeenCalledTimes(1)
+})
+
+test('a failed window log is a netlify 500, and Gemini is never called', async () => {
+  supabase.mockRejectedValue(new TypeError('fetch failed'))
+  expect(await answer(await send({ messages: [human] }))).toEqual({ status: 500, body: { error: 'fetch failed', source: 'netlify', timeout: false } })
+  expect(invoke).not.toHaveBeenCalled()
+})
+
+test('a window log past the time limit is a netlify 504 timeout, and Gemini is never called', async () => {
+  vi.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort(new DOMException('timed out', 'TimeoutError')))
+  supabase.mockImplementation(async (_url: string, { signal }: RequestInit) => signal?.throwIfAborted())
+  expect(await answer(await send({ messages: [human] }))).toMatchObject({ status: 504, body: { source: 'netlify', timeout: true } })
+  expect(invoke).not.toHaveBeenCalled()
 })

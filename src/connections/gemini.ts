@@ -73,10 +73,12 @@ function failedResponse(res: Response, body: TaggedError, text: string, details:
   return { error: failedError(res.status, kind, message), kind, source: body.source ?? 'netlify', details: { ...details, response: text.slice(0, MAX_RESPONSE_DETAIL) } }
 }
 
-export async function callModel(request: ModelRequest, signal: AbortSignal, onError: OnNetworkError): Promise<ModelReply> {
+// `token` is the chat JWT: the chat function logs the call in the rate window with it (connections/supabase.ts).
+export async function callModel(request: ModelRequest, token: string, signal: AbortSignal, onError: OnNetworkError): Promise<ModelReply> {
   const start = Date.now()
   const details = { toolChoice: request.toolChoice ?? null, messages: request.messages.length }
-  const res = await fetch(ENDPOINT, { method: 'POST', headers: HEADERS, body: JSON.stringify(request), signal }).catch((error: Error) => {
+  const headers = { ...HEADERS, Authorization: `Bearer ${token}` }
+  const res = await fetch(ENDPOINT, { method: 'POST', headers, body: JSON.stringify(request), signal }).catch((error: Error) => {
     if (signal.aborted) throw error
     throw logNetworkError(error, { source: 'netlify', kind: 'network', target: ENDPOINT, elapsedMs: since(start), details }, onError)
   })

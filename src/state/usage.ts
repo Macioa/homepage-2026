@@ -1,6 +1,7 @@
-// Gemini rate window: a sliding window log in Supabase (public.gemini_requests, personal repo). Every
-// model call is logged first; the site has no login, so all visitors share one window. Gemini allows 15
-// calls a minute; the app counts against 10 and locks Send for 30 seconds from any call that reaches 10.
+// Gemini rate window: a sliding window log in Supabase (public.gemini_requests, personal repo). The chat
+// function logs every model call and refuses one past the limit; the site has no login, so all visitors share
+// one window. Gemini allows 15 calls a minute; the app counts against 10 and locks Send for 30 seconds from
+// any call that reaches 10.
 
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { callRpc } from '../connections/supabase'
@@ -11,7 +12,7 @@ export const USAGE_LIMIT = 10
 const LOCK_MS = 30_000
 const POLL_MS = 5_000
 
-// What log_gemini_request / get_gemini_usage return: server time and the calls still in the window.
+// What get_gemini_usage returns: server time and the calls still in the window.
 type UsageRow = { id: number; sent_at: string; expires_at: string }
 type UsageSnapshot = { now: string; used: UsageRow[] }
 
@@ -41,9 +42,6 @@ async function readWindow(fn: string, token: string | null, dispatch: Parameters
 }
 
 const usageThunk = createAsyncThunk.withTypes<{ state: UsageRoot }>()
-
-// Logs one Gemini call; resolves to the window after it.
-export const logGeminiRequest = usageThunk('usage/log', (_: void, { getState, dispatch }) => readWindow('log_gemini_request', getState().auth.token, dispatch))
 
 // Reads the window (other visitors' calls included). Skipped until the chat JWT is in.
 export const fetchGeminiUsage = usageThunk('usage/fetch', (_: void, { getState, dispatch }) => readWindow('get_gemini_usage', getState().auth.token, dispatch), {
@@ -76,13 +74,10 @@ const usage = createSlice({
     }
   },
   extraReducers: builder => {
-    builder.addMatcher(
-      ({ type }) => type === logGeminiRequest.fulfilled.type || type === fetchGeminiUsage.fulfilled.type,
-      (state, { payload }: { payload: { receivedAt: number; used: UsedCall[] } }) => {
-        state.used = mergeCalls(state.used, payload.used, payload.receivedAt)
-        state.lockedUntil = Math.max(state.lockedUntil, lockFrom(state.used))
-      }
-    )
+    builder.addCase(fetchGeminiUsage.fulfilled, (state, { payload }) => {
+      state.used = mergeCalls(state.used, payload.used, payload.receivedAt)
+      state.lockedUntil = Math.max(state.lockedUntil, lockFrom(state.used))
+    })
   }
 })
 

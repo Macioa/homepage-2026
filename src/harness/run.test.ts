@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-// callLoggedModel: a timed-out model call is retried up to 3 times, each retry logged in the rate window;
+// callLoggedModel: a timed-out model call is retried up to 3 times, each retry rereading the rate window first;
 // no retry once the window is locked, and none for other errors. An overloaded Gemini (503) is retried the
 // same way after a 30 second wait. Once the window is full a call waits until 2 slots are free. createRun
 // adds no timeout to the run's signal.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { callModel, ModelTimeoutError, ModelUnavailableError } from '../connections/gemini'
+import { DataAccessError } from '../connections/supabase'
 import { USAGE_LIMIT, type UsedCall } from '../state/usage'
 import { callLoggedModel, createRun, type HarnessStore } from './run'
 
@@ -16,7 +17,8 @@ const request = { messages: [] }
 let lockedUntil = 0
 let used: UsedCall[] = []
 const dispatch = vi.fn(() => ({ unwrap: async () => {} }))
-const store = { dispatch, getState: () => ({ usage: { used, lockedUntil } }) } as unknown as HarnessStore
+let token: string | null = 'token'
+const store = { dispatch, getState: () => ({ auth: { token }, usage: { used, lockedUntil } }) } as unknown as HarnessStore
 const run = (signal = new AbortController().signal) => ({ store, signal })
 const model = vi.mocked(callModel)
 
@@ -25,6 +27,7 @@ const fillWindow = (count: number) =>
   Array.from({ length: count }, (_, i) => ({ id: i, sentAt: Date.now(), expiresAt: Date.now() + (i + 1) * 1000 }))
 
 beforeEach(() => {
+  token = 'token'
   lockedUntil = 0
   used = []
   dispatch.mockClear()
@@ -35,7 +38,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-test('retries a timeout and logs every attempt', async () => {
+test('retries a timeout and rereads the window for every attempt', async () => {
   model.mockRejectedValueOnce(new ModelTimeoutError('t')).mockRejectedValueOnce(new ModelTimeoutError('t')).mockResolvedValueOnce(reply)
   await expect(callLoggedModel(request, run())).resolves.toBe(reply)
   expect(model).toHaveBeenCalledTimes(3)
@@ -61,7 +64,7 @@ test('no retry for other errors', async () => {
   expect(model).toHaveBeenCalledTimes(1)
 })
 
-test('an overloaded Gemini is retried after 30 seconds, each attempt logged', async () => {
+test('an overloaded Gemini is retried after 30 seconds, each attempt rereading the window', async () => {
   vi.useFakeTimers()
   model.mockRejectedValueOnce(new ModelUnavailableError('503')).mockResolvedValueOnce(reply)
   const result = callLoggedModel(request, run())
@@ -108,14 +111,13 @@ test('a window one short of full does not wait', async () => {
   await expect(callLoggedModel(request, run())).resolves.toBe(reply)
 })
 
-test('a full window waits until 2 slots are free, then logs and calls', async () => {
+test('a full window waits until 2 slots are free, then calls', async () => {
   vi.useFakeTimers()
   used = fillWindow(USAGE_LIMIT)
   model.mockResolvedValue(reply)
   const result = callLoggedModel(request, run())
   await vi.advanceTimersByTimeAsync(1000)
   // One slot free is not enough.
-  expect(dispatch).not.toHaveBeenCalled()
   expect(model).not.toHaveBeenCalled()
   await vi.advanceTimersByTimeAsync(1000)
   await expect(result).resolves.toBe(reply)
@@ -151,7 +153,7 @@ test('waits again when other calls fill the window during the wait', async () =>
   await expect(result).resolves.toBe(reply)
 })
 
-test('Stop during the wait aborts without logging or calling', async () => {
+test('Stop during the wait aborts without calling', async () => {
   vi.useFakeTimers()
   used = fillWindow(USAGE_LIMIT)
   const stop = new AbortController()
@@ -159,6 +161,18 @@ test('Stop during the wait aborts without logging or calling', async () => {
   await vi.advanceTimersByTimeAsync(500)
   stop.abort(new Error('stopped'))
   await expect(result).rejects.toThrow('stopped')
+  expect(model).not.toHaveBeenCalled()
+})
+
+test('sends the chat JWT with the call', async () => {
+  model.mockResolvedValue(reply)
+  await callLoggedModel(request, run())
+  expect(model).toHaveBeenCalledWith(request, 'token', expect.any(AbortSignal), expect.any(Function))
+})
+
+test('no chat JWT: no read and no call', async () => {
+  token = null
+  await expect(callLoggedModel(request, run())).rejects.toBeInstanceOf(DataAccessError)
   expect(dispatch).not.toHaveBeenCalled()
   expect(model).not.toHaveBeenCalled()
 })

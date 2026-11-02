@@ -1,12 +1,13 @@
 // A harness run: the store and one abort signal for the user's stop. Its model calls all go through
-// callLoggedModel, so each one (retries included) waits out a full rate window, then is logged in the
-// Gemini rate window (state/usage.ts) first.
+// callLoggedModel, so each one (retries included) rereads the Gemini rate window (state/usage.ts) and waits
+// out a full one; the chat function logs the call in it.
 
 import { callModel, ModelTimeoutError, ModelUnavailableError, type ModelRequest } from '../connections/gemini'
 import { DataAccessError } from '../connections/supabase'
+import { TOKEN_NOT_READY } from '../prompts'
 import type { AppDispatch, RootState } from '../state'
 import { onNetworkError } from '../state/networkErrors'
-import { logGeminiRequest, selectActiveCalls, selectSendLocked, USAGE_LIMIT } from '../state/usage'
+import { fetchGeminiUsage, selectActiveCalls, selectSendLocked, USAGE_LIMIT } from '../state/usage'
 
 // Retries of a model call that timed out in Netlify or Gemini, or found Gemini overloaded.
 const LLM_RETRIES = 3
@@ -47,10 +48,17 @@ async function waitForSlots(run: Run) {
   for (let at = slotsFreeAt(run); at; at = slotsFreeAt(run)) await sleep(at - Date.now(), run.signal)
 }
 
-// The log is a Supabase call, so a failed log is a failed Supabase connection.
-async function logRequest({ store }: Run) {
+// The chat JWT the window read and the model call are made with.
+function chatToken({ store }: Run) {
+  const { token } = store.getState().auth
+  if (!token) throw new DataAccessError(TOKEN_NOT_READY)
+  return token
+}
+
+// The window is read from Supabase, so a failed read is a failed Supabase connection.
+async function readWindow({ store }: Run) {
   try {
-    await store.dispatch(logGeminiRequest()).unwrap()
+    await store.dispatch(fetchGeminiUsage()).unwrap()
   } catch (error) {
     throw new DataAccessError((error as Error).message)
   }
@@ -62,13 +70,14 @@ const retryable = (error: unknown) => error instanceof ModelTimeoutError || erro
 const canRetry = (error: unknown, { store, signal }: Run, retriesLeft: number) =>
   retryable(error) && retriesLeft > 0 && !signal.aborted && !selectSendLocked(store.getState(), Date.now())
 
-// Waits for free slots, logs the call, then makes it; a failed log stops the call, so none goes uncounted.
-// An overloaded Gemini is given UNAVAILABLE_WAIT_MS before the retry.
+// Rereads the window and waits for free slots, then makes the call. An overloaded Gemini is given
+// UNAVAILABLE_WAIT_MS before the retry.
 async function callWithRetries(request: ModelRequest, run: Run, retriesLeft: number): ReturnType<typeof callModel> {
+  const token = chatToken(run)
+  await readWindow(run)
   await waitForSlots(run)
-  await logRequest(run)
   try {
-    return await callModel(request, run.signal, onNetworkError(run.store.dispatch))
+    return await callModel(request, token, run.signal, onNetworkError(run.store.dispatch))
   } catch (error) {
     if (!canRetry(error, run, retriesLeft)) throw error
     if (error instanceof ModelUnavailableError) await sleep(UNAVAILABLE_WAIT_MS, run.signal)

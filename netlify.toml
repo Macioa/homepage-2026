@@ -8,7 +8,7 @@
   NODE_VERSION = "24"
 
 # `netlify dev`: Vite plus the functions in netlify/functions, with the site env vars injected.
-# Served on 5173 (the origin get-llm-token allows); Vite runs behind it on 5174.
+# Served on 5173 (the origin get-jwt allows); Vite runs behind it on 5174.
 [dev]
   command = "npm run dev -- --port 5174 --strictPort"
   targetPort = 5174

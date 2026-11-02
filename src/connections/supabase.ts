@@ -1,4 +1,4 @@
-// Supabase: a 1-hour PostgREST JWT for the `chat` role, minted by the get-llm-token edge function
+// Supabase: a 1-hour PostgREST JWT for the `chat` role, minted by the get-jwt edge function
 // (personal repo), so the browser never holds a permanent key. Every failure is recorded where it happens (networkError.ts).
 
 import { logNetworkError, since, type OnNetworkError } from './networkError'
@@ -6,7 +6,7 @@ import { logNetworkError, since, type OnNetworkError } from './networkError'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 const ENV_NOT_SET = 'VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY not set'
-const TOKEN_TARGET = 'functions/v1/get-llm-token'
+const TOKEN_TARGET = 'functions/v1/get-jwt'
 // Statuses that mean Supabase itself failed (auth refused, server error), not the call's args.
 const AUTH_FAILURE_STATUSES = [401, 403]
 const SERVER_ERROR_STATUS = 500
@@ -34,7 +34,7 @@ export async function getChatToken(onError: OnNetworkError): Promise<ChatToken> 
   })
   const body = await res.json().catch(() => ({}))
   const failure = { target: TOKEN_TARGET, status: res.status, elapsedMs: since(start), details: { response: body } }
-  if (!res.ok) throw logNetworkError(new Error(body.error ?? `get-llm-token ${res.status}`), { source: 'supabase', kind: 'http', ...failure }, onError)
+  if (!res.ok) throw logNetworkError(new Error(body.error ?? `get-jwt ${res.status}`), { source: 'supabase', kind: 'http', ...failure }, onError)
   return body as ChatToken
 }
 

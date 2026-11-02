@@ -10,6 +10,12 @@ const mode = z.enum(['precise', 'start_to_end']).describe(TOOL_ARG.mode)
 const skillArgs = z.object({ skill: z.string().describe(TOOL_ARG.skill), mode: mode.optional() })
 const skillsArgs = z.object({ skills: z.array(z.string()).describe(TOOL_ARG.skills), mode: mode.optional() })
 const pitchArgs = z.object({ slugs: z.array(z.string()).describe(TOOL_ARG.slugs), mode })
+const faqArgs = z.object({ slug: z.string().describe(TOOL_ARG.faqSlug) })
+const faqsArgs = z.object({ slugs: z.array(z.string()).describe(TOOL_ARG.faqSlugs) })
+const messageArgs = z.object({
+  message: z.string().min(1).max(5000).describe(TOOL_ARG.message),
+  from: z.string().max(320).optional().describe(TOOL_ARG.from)
+})
 
 async function rpc(fn: string, args: Record<string, unknown>, { token, signal, onError }: ToolContext) {
   if (!token) throw new DataAccessError(TOKEN_NOT_READY)
@@ -53,4 +59,44 @@ export const pitchDetail: DataTool<typeof pitchArgs> = {
   description: TOOL.pitchDetail,
   args: pitchArgs,
   run: ({ slugs, mode }, ctx) => rpc('pitch_detail', { p_slugs: slugs, p_mode: mode }, ctx)
+}
+
+// Slug and question of every FAQ, no answers (public.get_all_faqs).
+export const getAllFaqs: DataTool = {
+  kind: 'data',
+  name: 'get_all_faqs',
+  description: TOOL.getAllFaqs,
+  args: z.object({}),
+  run: (_args, ctx) => rpc('get_all_faqs', {}, ctx)
+}
+
+// One FAQ's question and answer; null for an unknown slug (public.get_faq).
+export const getFaq: DataTool<typeof faqArgs> = {
+  kind: 'data',
+  name: 'get_faq',
+  description: TOOL.getFaq,
+  args: faqArgs,
+  run: ({ slug }, ctx) => rpc('get_faq', { p_slug: slug }, ctx)
+}
+
+// Several FAQs at once; unknown slugs are dropped (public.get_faqs).
+export const getFaqs: DataTool<typeof faqsArgs> = {
+  kind: 'data',
+  name: 'get_faqs',
+  description: TOOL.getFaqs,
+  args: faqsArgs,
+  run: ({ slugs }, ctx) => rpc('get_faqs', { p_slugs: slugs }, ctx)
+}
+
+// Leaves Ryan a message (public.send_message). Write-only: returns no row, so success is reported here.
+export const sendMessage: DataTool<typeof messageArgs> = {
+  kind: 'data',
+  name: 'send_message',
+  description: TOOL.sendMessage,
+  args: messageArgs,
+  examplePrompt: 'Leave Ryan a message.',
+  run: async ({ message, from }, ctx) => {
+    await rpc('send_message', { message, ...(from && { from }) }, ctx)
+    return { sent: true }
+  }
 }

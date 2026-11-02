@@ -36,6 +36,10 @@ export const TOOL = {
   getSkill: 'look up one Ryan skill and how long he used it',
   getSkills: 'look up several Ryan skills and how long he used each',
   pitchDetail: 'read Ryan pitches by exact slug',
+  getAllFaqs: 'list slug and question of every FAQ about Ryan, no answers',
+  getFaq: 'read one FAQ answer by exact slug from get_all_faqs',
+  getFaqs: 'read several FAQ answers by exact slugs from get_all_faqs',
+  sendMessage: 'send Ryan a message. Only when the visitor asks to contact Ryan; use their words',
   testGetSkills: 'list Ryan skills',
   testGetProjects: 'list Ryan projects',
   testSearchJobs: 'search Ryan jobs by keyword'
@@ -47,6 +51,10 @@ export const TOOL_ARG = {
   skill: 'skill name, e.g. React',
   skills: 'skill names, e.g. ["React","Go"]',
   slugs: 'pitch slugs',
+  faqSlug: 'FAQ slug',
+  faqSlugs: 'FAQ slugs',
+  message: "the visitor's message to Ryan",
+  from: "the visitor's name or email, if given",
   mode: 'precise: actual days used; start_to_end: first to last use',
   reply: 'the final reply to the visitor'
 }

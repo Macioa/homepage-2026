@@ -1,7 +1,7 @@
 // Tool register
 
 import { finishAndReply, noAppropriateTool, offTopicQuestion, resetContext } from './functionalTools'
-import { getAllSkills, getSkill, getSkills, pitchDetail } from './supabaseTools'
+import { getAllFaqs, getAllSkills, getFaq, getFaqs, getSkill, getSkills, pitchDetail, sendMessage } from './supabaseTools'
 import { testGetProjects, testGetSkills, testSearchJobs } from './testTools'
 import { toToolSpec, type Tool } from './tool'
 
@@ -15,7 +15,11 @@ export const TOOLS: Tool[] = [
   getAllSkills,
   getSkill,
   getSkills,
-  pitchDetail
+  pitchDetail,
+  getAllFaqs,
+  getFaq,
+  getFaqs,
+  sendMessage
   // TEST (not live): testGetSkills, testGetProjects, testSearchJobs in testTools.ts
 ]
 
@@ -25,6 +29,6 @@ export const TOOL_INDEX: Record<string, Tool | undefined> = Object.fromEntries(T
 
 export const TOOL_SPECS = TOOLS.map(toToolSpec)
 
-export { finishAndReply, getAllSkills, getSkill, getSkills, noAppropriateTool, offTopicQuestion, pitchDetail, resetContext, toToolSpec }
+export { finishAndReply, getAllFaqs, getAllSkills, getFaq, getFaqs, getSkill, getSkills, noAppropriateTool, offTopicQuestion, pitchDetail, resetContext, sendMessage, toToolSpec }
 export { testGetProjects, testGetSkills, testSearchJobs }
 export type { DataTool, FunctionalTool, Tool, ToolContext } from './tool'

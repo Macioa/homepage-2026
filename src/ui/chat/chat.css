@@ -514,6 +514,30 @@
   scrollbar-color: var(--llm-dim) transparent;
 }
 
+/* Greeting example lines: plain screen text that lights up on hover; a click fills the prompt */
+.llm .reply .example {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: inherit;
+  text-align: left;
+  color: inherit;
+  text-shadow: inherit;
+  border: none;
+  border-radius: 0;
+}
+
+.llm .reply .example:hover,
+.llm .reply .example:focus-visible {
+  color: var(--llm-green);
+  text-shadow: var(--llm-glow);
+  text-decoration: underline;
+  box-shadow: none;
+}
+
 /* Short screens (phone landscape, keyboard open): tighter spacing so the reply keeps some room */
 @media (max-height: 500px) {
   .llm {

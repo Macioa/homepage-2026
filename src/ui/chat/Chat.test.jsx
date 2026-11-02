@@ -55,6 +55,13 @@ test("Stop aborts the running send", async () => {
   await vi.waitFor(() => expect(screenText()).toBe("Stopped by user."), { timeout: 3000 });
 });
 
+test("clicking a greeting example puts it in the prompt", async () => {
+  render(<Chat onSend={vi.fn()} />);
+  const example = await screen.findByRole("button", { name: /^- Leave Ryan a message\.$/ }, { timeout: 8000 });
+  fireEvent.click(example);
+  expect(screen.getByRole("textbox").value).toBe("Leave Ryan a message.");
+});
+
 test("Send is disabled without onSend", () => {
   render(<Chat />);
   expect(screen.getByRole("button", { name: "Send" }).disabled).toBe(true);

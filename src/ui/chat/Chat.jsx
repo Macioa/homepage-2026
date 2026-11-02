@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import PixelBar from "./PixelBar.jsx";
 import CrtFrame from "./CrtFrame.jsx";
 import PromptInput from "./PromptInput.jsx";
@@ -6,10 +7,11 @@ import { TOOLS } from "../../tools";
 import "./chat.css";
 
 // Example prompts from the tools that have one.
-const EXAMPLES = TOOLS.flatMap((tool) => (tool.examplePrompt ? [`- ${tool.examplePrompt}`] : []));
+const EXAMPLES = TOOLS.flatMap((tool) => (tool.examplePrompt ? [tool.examplePrompt] : []));
+const EXAMPLE_MARK = "- ";
 const GREETING =
   "Wake up, visitor... I'm Ryan's resume assistant. Ask me about Ryan's career experience." +
-  `\n\n\nExamples:\n${EXAMPLES.join("\n")}`;
+  `\n\n\nExamples:\n${EXAMPLES.map((example) => EXAMPLE_MARK + example).join("\n")}`;
 // Small chunks at a steady pace, so typed text feeds like a reply.
 const TYPE_CHUNK = /\S{1,4}\s*|\s+/g;
 const TYPE_MS = 45;
@@ -18,6 +20,24 @@ const TYPE_MS = 45;
 function loopProgress(status) {
   if (status === "running") return null;
   return status === "idle" ? 0 : 100;
+}
+
+// The greeting as typed so far, with each example line as a button that puts its prompt in the field.
+function Greeting({ text, onPick }) {
+  let example = 0;
+  return text.split("\n").map((line, i, lines) => {
+    const end = i < lines.length - 1 ? "\n" : "";
+    if (!line.startsWith(EXAMPLE_MARK)) return line + end;
+    const prompt = EXAMPLES[example++];
+    return (
+      <Fragment key={i}>
+        <button type="button" className="example" onClick={() => onPick(prompt)}>
+          {line}
+        </button>
+        {end}
+      </Fragment>
+    );
+  });
 }
 
 // Gemini rate bar, prompt, Send/Stop, and a CRT screen the reply is typed into.
@@ -31,7 +51,16 @@ export default function Chat({ onSend = undefined, usage = { used: 0, limit: 10,
   const [reply, setReply] = useState("");
   const typeTimer = useRef(null);
   const abort = useRef(null);
+  const root = useRef(null);
   const canSend = Boolean(onSend) && !busy && !usage.locked;
+
+  // Fill the prompt with a clicked example and focus the field with the caret after it.
+  function pick(example) {
+    flushSync(() => setPrompt(example));
+    const field = root.current?.querySelector("textarea");
+    field?.focus();
+    field?.setSelectionRange(example.length, example.length);
+  }
 
   function typeOut(text) {
     clearInterval(typeTimer.current);
@@ -68,7 +97,7 @@ export default function Chat({ onSend = undefined, usage = { used: 0, limit: 10,
   }
 
   return (
-    <div className="llm">
+    <div className="llm" ref={root}>
       <div className="progress">
         <PixelBar label="Throttle" value={usage.used} max={usage.limit} />
       </div>
@@ -88,7 +117,9 @@ export default function Chat({ onSend = undefined, usage = { used: 0, limit: 10,
         </button>
       </div>
       <CrtFrame>
-        <pre className="reply">{busy ? "> thinking..." : reply}</pre>
+        <pre className="reply">
+          {busy ? "> thinking..." : status === "idle" ? <Greeting text={reply} onPick={pick} /> : reply}
+        </pre>
       </CrtFrame>
       <div className="progress">
         <PixelBar label="Loop" hideLabel value={loopProgress(status)} />

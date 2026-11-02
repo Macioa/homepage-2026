@@ -16,6 +16,9 @@ export default function PromptInput({ value, onChange, onSubmit, canSubmit, ...p
     if (el) setCaret({ at: el.selectionStart, selecting: el.selectionStart !== el.selectionEnd });
   };
 
+  // A value set from outside (e.g. a clicked example) moves the caret without an input event.
+  useLayoutEffect(syncCaret, [value]);
+
   // Keep the mirror on top of the field's text box and scrolled with it.
   useLayoutEffect(() => {
     const el = fieldRef.current;

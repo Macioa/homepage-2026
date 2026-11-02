@@ -8,7 +8,6 @@ import { toToolSpec, type Tool } from './tool'
 export const TOOLS: Tool[] = [
   // functional
   finishAndReply,
-  resetContext,
   noAppropriateTool,
   offTopicQuestion,
   // supabase
@@ -20,6 +19,7 @@ export const TOOLS: Tool[] = [
   getFaq,
   getFaqs,
   sendMessage
+  // NOT LIVE: resetContext in functionalTools.ts (the harness still handles it, see harness/loop.ts)
   // TEST (not live): testGetSkills, testGetProjects, testSearchJobs in testTools.ts
 ]
 

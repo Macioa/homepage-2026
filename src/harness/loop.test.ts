@@ -6,6 +6,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { ModelReply, ModelRequest, ToolCall } from '../connections/gemini'
 import { harnessReducer } from '../state/harness'
+import { historyReducer } from '../state/history'
 import { freshContext } from './context'
 import { toolLoop } from './loop'
 import { callLoggedModel, type HarnessStore, type Run } from './run'
@@ -17,7 +18,7 @@ let run: Run
 
 beforeEach(() => {
   model.mockReset()
-  const store = configureStore({ reducer: { harness: harnessReducer, auth: () => ({ token: null }) } })
+  const store = configureStore({ reducer: { harness: harnessReducer, history: historyReducer, auth: () => ({ token: null }) } })
   run = { store: store as unknown as HarnessStore, signal: new AbortController().signal }
 })
 

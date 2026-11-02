@@ -1,9 +1,11 @@
-// The LLM context: messages in LangChain's stored format, a cleared context, and the reset_context reload.
+// The LLM context: messages in LangChain's stored format, a cleared context with the chat memory, and the
+// reset_context reload.
 
 import { z } from 'zod'
 import type { ModelRequest, StoredMessage, ToolCall } from '../connections/gemini'
 import * as PROMPTS from '../prompts'
 import { selectStateKeys, selectStateValues } from '../state/harness'
+import { selectHistory, type HistoryEntry } from '../state/history'
 import { toToolSpec } from '../tools'
 import { callLoggedModel, type Run } from './run'
 
@@ -17,13 +19,22 @@ export const systemMessage = (content: string): StoredMessage => ({ type: 'syste
 
 export const humanMessage = (content: string): StoredMessage => ({ type: 'human', data: { content } })
 
+export const aiMessage = (content: string): StoredMessage => ({ type: 'ai', data: { content } })
+
 export const toolMessage = ({ id, name }: ToolCall, content: string): StoredMessage => ({
   type: 'tool',
   data: { content, tool_call_id: id, name }
 })
 
-// A cleared context: the system prompt plus one message.
-export const freshContext = (content: string): Context => [systemMessage(PROMPTS.SYSTEM), humanMessage(content)]
+// Chat memory as turns: the visitor's prompts as human messages, the final responses as the model's.
+const historyMessage = ({ label, text }: HistoryEntry) => (label === 'prompt' ? humanMessage(text) : aiMessage(text))
+
+// A cleared context: the system prompt, the chat memory, then one message.
+export const freshContext = (content: string, history: HistoryEntry[] = []): Context => [
+  systemMessage(PROMPTS.SYSTEM),
+  ...history.map(historyMessage),
+  humanMessage(content)
+]
 
 const selectTool = (keys: string[]) =>
   toToolSpec({
@@ -41,9 +52,9 @@ async function selectKeys(keys: string[], run: Run) {
   return readKeys(call)
 }
 
-// reset_context: drops the context and starts a new one with the values of the keys the LLM chose.
+// reset_context: drops the context and starts a new one with the chat memory and the values of the keys the LLM chose.
 export async function reloadContext(run: Run) {
   const { store } = run
   const chosen = await selectKeys(selectStateKeys(store.getState()), run)
-  return freshContext(JSON.stringify(selectStateValues(store.getState(), chosen)))
+  return freshContext(JSON.stringify(selectStateValues(store.getState(), chosen)), selectHistory(store.getState()))
 }

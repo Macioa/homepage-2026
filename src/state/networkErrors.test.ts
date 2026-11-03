@@ -34,10 +34,21 @@ test("Netlify's 504 is a timeout; its body is kept in details, not shown", async
   expect(latest()?.details.response).toContain('Sandbox.Timedout')
 })
 
-test('a 502 (crashed function) is not a timeout, so it is not retried', async () => {
+test('a quick 502 (crashed function) is not a timeout, so it is not retried', async () => {
   respond(502, 'Bad Gateway')
   await expect(callModel(request, 'token', live(), onError)).rejects.not.toBeInstanceOf(ModelTimeoutError)
   expect(latest()).toMatchObject({ source: 'netlify', kind: 'http', status: 502, message: 'chat 502' })
+})
+
+test("a 502 at production's 30-second function limit is a timeout, so it is retried", async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.stubGlobal('fetch', vi.fn(async () => {
+    vi.advanceTimersByTime(30_000)
+    return new Response('Bad Gateway', { status: 502 })
+  }))
+  await expect(callModel(request, 'token', live(), onError)).rejects.toThrow(new ModelTimeoutError('chat 502'))
+  expect(latest()).toMatchObject({ source: 'netlify', kind: 'timeout', status: 502 })
+  vi.useRealTimers()
 })
 
 test('a tagged timeout is Gemini, inside the function', async () => {

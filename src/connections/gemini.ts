@@ -12,8 +12,11 @@ const USAGE_LIMIT_STATUS = 429
 // The chat function passes Gemini's 503 through when the model is overloaded ("high demand").
 const UNAVAILABLE_STATUS = 503
 // Netlify answers 504 when it gives up on a function; netlify dev answers 500 with "TimeoutError: Task timed out".
-// A 502 (the function crashed) is not a timeout, so it isn't retried.
+// Production answers 502 when a function hits its 30-second limit, so a 502 that took nearly that long is a
+// timeout too; a quicker 502 (the function crashed) isn't, so it isn't retried.
 const GATEWAY_TIMEOUT_STATUS = 504
+const BAD_GATEWAY_STATUS = 502
+const FUNCTION_LIMIT_MS = 25_000
 const TIMED_OUT = /TimeoutError|timed out/i
 const MAX_RESPONSE_DETAIL = 500
 
@@ -55,8 +58,10 @@ const parseJson = (text: string) => {
   }
 }
 
-function failedKind(status: number, body: TaggedError, text: string): NetworkErrorKind {
-  const timeout = body.source ? body.timeout : status === GATEWAY_TIMEOUT_STATUS || TIMED_OUT.test(text)
+const hitFunctionLimit = (status: number, elapsedMs: number) => status === BAD_GATEWAY_STATUS && elapsedMs >= FUNCTION_LIMIT_MS
+
+function failedKind(status: number, body: TaggedError, text: string, elapsedMs: number): NetworkErrorKind {
+  const timeout = body.source ? body.timeout : status === GATEWAY_TIMEOUT_STATUS || TIMED_OUT.test(text) || hitFunctionLimit(status, elapsedMs)
   return timeout ? 'timeout' : 'http'
 }
 
@@ -66,8 +71,8 @@ function failedError(status: number, kind: NetworkErrorKind, message: string) {
   return kind === 'timeout' ? new ModelTimeoutError(message) : new Error(message)
 }
 
-function failedResponse(res: Response, body: TaggedError, text: string, details: Record<string, unknown>) {
-  const kind = failedKind(res.status, body, text)
+function failedResponse(res: Response, body: TaggedError, text: string, details: Record<string, unknown>, elapsedMs: number) {
+  const kind = failedKind(res.status, body, text, elapsedMs)
   // Netlify's own error body stays in details.response; the chat shows only its status.
   const message = body.error ?? `chat ${res.status}`
   return { error: failedError(res.status, kind, message), kind, source: body.source ?? 'netlify', details: { ...details, response: text.slice(0, MAX_RESPONSE_DETAIL) } }
@@ -85,6 +90,7 @@ export async function callModel(request: ModelRequest, token: string, signal: Ab
   const text = await res.text()
   const body = parseJson(text)
   if (res.ok) return body
-  const { error, ...failure } = failedResponse(res, body, text, details)
-  throw logNetworkError(error, { ...failure, target: ENDPOINT, status: res.status, elapsedMs: since(start) }, onError)
+  const elapsedMs = since(start)
+  const { error, ...failure } = failedResponse(res, body, text, details, elapsedMs)
+  throw logNetworkError(error, { ...failure, target: ENDPOINT, status: res.status, elapsedMs }, onError)
 }

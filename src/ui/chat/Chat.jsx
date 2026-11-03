@@ -10,7 +10,7 @@ import "./chat.css";
 const EXAMPLES = TOOLS.flatMap((tool) => (tool.examplePrompt ? [tool.examplePrompt] : []));
 const EXAMPLE_MARK = "- ";
 const GREETING =
-  "Wake up, visitor... I'm Ryan's resume assistant. Ask me about Ryan's career experience." +
+  "Wake up, visitor... The AI has you.\n\nI'm Ryan's resume assistant. Ask me about Ryan's career experience." +
   `\n\n\nExamples:\n${EXAMPLES.map((example) => EXAMPLE_MARK + example).join("\n")}`;
 // Small chunks at a steady pace, so typed text feeds like a reply.
 const TYPE_CHUNK = /\S{1,4}\s*|\s+/g;

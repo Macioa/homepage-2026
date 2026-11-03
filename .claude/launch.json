@@ -1,11 +1,12 @@
-{
+﻿{
   "version": "0.0.1",
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["netlify", "dev"],
-      "port": 5173
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "netlify"],
+      "port": 48317
     }
   ]
 }
+

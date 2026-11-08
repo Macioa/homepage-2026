@@ -44,6 +44,14 @@ export const authReducer = auth.reducer
 
 type Dispatch = (action: ReturnType<typeof fetchChatToken>) => Promise<{ payload?: unknown }>
 
+// The held token, or a new one first when it is missing or expired (e.g. the refresh timer slept).
+export async function freshToken(getState: () => { auth: Pick<AuthState, 'token' | 'expiresAt'> }, dispatch: Dispatch) {
+  const { token, expiresAt } = getState().auth
+  if (token && expiresAt && expiresAt * 1000 > Date.now()) return token
+  await dispatch(fetchChatToken())
+  return getState().auth.token
+}
+
 // Gets a token now and keeps it fresh. Returns a stop function.
 export function startChatAuth(dispatch: Dispatch) {
   let timer: ReturnType<typeof setTimeout> | undefined

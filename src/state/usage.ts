@@ -6,6 +6,7 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { callRpc } from '../connections/supabase'
 import { TOKEN_NOT_READY } from '../prompts'
+import { freshToken } from './auth'
 import { onNetworkError } from './networkErrors'
 
 export const USAGE_LIMIT = 10
@@ -24,7 +25,7 @@ export type UsageState = {
   lockedUntil: number // client ms; Send is locked while now is before it
 }
 
-type UsageRoot = { auth: { token: string | null }; usage: UsageState }
+type UsageRoot = { auth: { token: string | null; expiresAt: number | null }; usage: UsageState }
 type UsageOnly = Pick<UsageRoot, 'usage'>
 
 const initialState: UsageState = { used: [], lockedUntil: 0 }
@@ -44,7 +45,7 @@ async function readWindow(fn: string, token: string | null, dispatch: Parameters
 const usageThunk = createAsyncThunk.withTypes<{ state: UsageRoot }>()
 
 // Reads the window (other visitors' calls included). Skipped until the chat JWT is in.
-export const fetchGeminiUsage = usageThunk('usage/fetch', (_: void, { getState, dispatch }) => readWindow('get_gemini_usage', getState().auth.token, dispatch), {
+export const fetchGeminiUsage = usageThunk('usage/fetch', async (_: void, { getState, dispatch }) => readWindow('get_gemini_usage', await freshToken(getState, dispatch as never), dispatch), {
   condition: (_, { getState }) => Boolean(getState().auth.token)
 })
 

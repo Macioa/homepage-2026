@@ -6,6 +6,7 @@ import type { StoredMessage, ToolCall } from '../connections/gemini'
 import { DataAccessError } from '../connections/supabase'
 import * as PROMPTS from '../prompts'
 import type { RootState } from '../state'
+import { freshToken } from '../state/auth'
 import { saveToolCall, selectToolCall, type ToolCallRecord } from '../state/harness'
 import { onNetworkError } from '../state/networkErrors'
 import { finishAndReply, noAppropriateTool, TOOL_INDEX, type ToolContext } from '../tools'
@@ -31,9 +32,13 @@ function classifyCall(call: ToolCall, state: RootState): CallKind {
   return selectToolCall(state, toCallKey(call))?.ok ? 'duplicate' : 'run'
 }
 
-// The data tool's context: the chat JWT as redux holds it now (a refreshed token is used), the run's signal, and
+// The data tool's context: the chat JWT (a new one first if it expired), the run's signal, and
 // onError recording failed requests in the network error history.
-const toolContext = ({ store, signal }: Run): ToolContext => ({ token: store.getState().auth.token, signal, onError: onNetworkError(store.dispatch) })
+const toolContext = async ({ store, signal }: Run): Promise<ToolContext> => ({
+  token: await freshToken(store.getState, store.dispatch),
+  signal,
+  onError: onNetworkError(store.dispatch)
+})
 
 async function runDataTool({ name, args }: ToolCall, ctx: ToolContext) {
   const tool = TOOL_INDEX[name]
@@ -51,7 +56,7 @@ function saveRecord(call: ToolCall, record: ToolCallRecord, { store }: Run) {
 // Supabase connection is saved, then rethrown to abort the run (harness/failure.ts).
 async function executeCall(call: ToolCall, run: Run) {
   try {
-    return saveRecord(call, { ok: true, result: await runDataTool(call, toolContext(run)) }, run)
+    return saveRecord(call, { ok: true, result: await runDataTool(call, await toolContext(run)) }, run)
   } catch (error) {
     const failed = saveRecord(call, { ok: false, result: (error as Error).message }, run)
     if (error instanceof DataAccessError) throw error

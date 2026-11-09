@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Project } from '../../../connections/projects'
 import { ImageGallery } from './ImageGallery'
 import { ProjectDates } from './ProjectDates'
@@ -21,6 +22,24 @@ const hostOf = (url: string) => {
   } catch {
     return url
   }
+}
+
+// Renders [text](https://url) markdown links inside plain text; everything else stays text.
+const LINK = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
+const RichText = ({ text }: { text: string }) => {
+  const parts: ReactNode[] = []
+  let last = 0
+  for (const m of text.matchAll(LINK)) {
+    parts.push(text.slice(last, m.index))
+    parts.push(
+      <a key={m.index} className={style.inlineLink} href={m[2]} target='_blank' rel='noopener noreferrer'>
+        {m[1]}
+      </a>
+    )
+    last = m.index + m[0].length
+  }
+  parts.push(text.slice(last))
+  return <>{parts}</>
 }
 
 const LinkChips = ({ label, urls }: { label: string; urls?: string[] }) =>
@@ -48,7 +67,9 @@ export const ProjectCard = ({ project }: { project: Project }) => {
             <LinkChips label='Source' urls={project.source_url} />
           </div>
         </header>
-        {project.desc && <p className={style.overview}>{project.desc}</p>}
+        {project.desc && <p className={style.overview}>
+            <RichText text={project.desc} />
+          </p>}
         {panels.length > 0 && (
           <div className={style.panels}>
             {panels.map(({ key, label, tags, values }) => (
@@ -59,7 +80,9 @@ export const ProjectCard = ({ project }: { project: Project }) => {
                 </summary>
                 <ul className={tags ? style.tags : style.bullets}>
                   {values.map((v, i) => (
-                    <li key={i}>{v}</li>
+                    <li key={i}>
+                      <RichText text={v} />
+                    </li>
                   ))}
                 </ul>
               </details>

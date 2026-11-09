@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import style from './projects.module.css'
 
 type LoadState = 'loading' | 'loaded' | 'error'
@@ -24,6 +25,9 @@ const LazyImage = ({ src, alt, className, eager }: { src: string; alt: string; c
   )
 }
 
+// Only one lightbox open at a time: opening one closes the previous.
+let closeOpen: (() => void) | null = null
+
 // Main image in a fixed-ratio frame (any aspect ratio fits without layout shift), a thumbnail strip, and a lightbox.
 export const ImageGallery = ({ images, title }: { images: string[]; title: string }) => {
   const [index, setIndex] = useState(0)
@@ -41,6 +45,16 @@ export const ImageGallery = ({ images, title }: { images: string[]; title: strin
     const left = thumb.offsetLeft - (el.clientWidth - thumb.clientWidth) / 2
     el.scrollTo({ left, behavior: 'smooth' })
   }, [index])
+
+  useEffect(() => {
+    if (!zoomed) return
+    const close = () => setZoomed(false)
+    closeOpen?.()
+    closeOpen = close
+    return () => {
+      if (closeOpen === close) closeOpen = null
+    }
+  }, [zoomed])
 
   useEffect(() => {
     if (!zoomed) return
@@ -114,15 +128,29 @@ export const ImageGallery = ({ images, title }: { images: string[]; title: strin
           ))}
         </div>
       )}
-      {zoomed && (
-        <div className={style.lightbox} role='dialog' aria-modal='true' aria-label={label(index)} onClick={() => setZoomed(false)}>
-          <LazyImage key={`z-${index}-${images[index]}`} src={images[index]} alt={label(index)} className={style.lightboxImage} eager />
-          <button type='button' className={style.close} onClick={() => setZoomed(false)} aria-label='Close' autoFocus>
-            ×
-          </button>
-          {count > 1 && navButtons(true)}
-        </div>
-      )}
+      {zoomed &&
+        createPortal(
+          <div className={style.lightbox} onClick={() => setZoomed(false)}>
+            <div className={style.popup} role='dialog' aria-modal='true' aria-label={label(index)} onClick={e => e.stopPropagation()}>
+              <div className={style.popupHeader}>
+                <span className={style.popupTitle}>{title}</span>
+                {count > 1 && (
+                  <span className={style.popupCount}>
+                    {index + 1}/{count}
+                  </span>
+                )}
+                <button type='button' className={style.close} onClick={() => setZoomed(false)} aria-label='Close' autoFocus>
+                  ×
+                </button>
+              </div>
+              <div className={style.popupStage}>
+                <LazyImage key={`z-${index}-${images[index]}`} src={images[index]} alt={label(index)} className={style.popupImage} eager />
+                {count > 1 && navButtons(false)}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

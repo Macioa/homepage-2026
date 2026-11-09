@@ -3,19 +3,24 @@ import { authReducer, startChatAuth } from './auth'
 import { harnessReducer } from './harness'
 import { historyReducer } from './history'
 import { networkErrorHistoryReducer } from './networkErrors'
+import { projectsReducer } from './projects'
 import { startUsagePolling, usageReducer } from './usage'
 
 const ui = createSlice({
   name: 'ui',
-  initialState: { ready: true },
+  initialState: { ready: true, view: 'chat' as 'chat' | 'projects' },
   reducers: {
+    // Footer projects button: opens the projects page, or returns to the chat when it is already open.
+    toggleProjects: state => {
+      state.view = state.view === 'projects' ? 'chat' : 'projects'
+    },
     setReady: (state, action: { payload: boolean }) => {
       state.ready = action.payload
     }
   }
 })
 
-export const { setReady } = ui.actions
+export const { setReady, toggleProjects } = ui.actions
 
 export const store = configureStore({
   reducer: {
@@ -24,7 +29,8 @@ export const store = configureStore({
     harness: harnessReducer,
     history: historyReducer,
     usage: usageReducer,
-    networkErrorHistory: networkErrorHistoryReducer
+    networkErrorHistory: networkErrorHistoryReducer,
+    projects: projectsReducer
   }
 })
 

@@ -7,6 +7,7 @@ import { Header } from './ui/components/Header'
 import { Stage } from './ui/components/Stage'
 import { Chat } from './ui/components/Chat'
 import { Footer } from './ui/components/Footer'
+import { Projects } from './ui/components/Projects'
 
 import styles from './ui/styles.module.css'
 
@@ -19,6 +20,7 @@ if (Root)
           <Header />
           <Stage className={styles.stage}>
             <Chat />
+            <Projects />
           </Stage>
           <Footer />
         </div>

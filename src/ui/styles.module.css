@@ -1,3 +1,11 @@
+:global(:root) {
+  --phosphor-text: #e6ffea;
+  --phosphor-green: #00ff33;
+  --phosphor-dim: rgba(0, 255, 51, 0.35);
+  --phosphor-glow: 0 0 8px rgba(0, 255, 51, 0.6);
+  --mono: Consolas, 'Lucida Console', 'Courier New', Courier, monospace;
+}
+
 /* Full-viewport column: header / stage / footer */
 .app {
   position: fixed;
@@ -63,6 +71,114 @@
   height: 50px;
 }
 
+.subtitle {
+  margin: 0.2em 0 0;
+  font-family: var(--mono);
+  color: var(--phosphor-green);
+  text-shadow: var(--phosphor-glow);
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  margin-right: -0.35em;
+  font-size: clamp(0.7rem, min(2.6vw, 2.4vh), 1.25rem);
+  opacity: 0.85;
+}
+
+.tagline {
+  margin: 0.35em 0 0;
+  font-family: var(--mono);
+  color: var(--phosphor-text);
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  margin-right: -0.25em;
+  font-size: clamp(0.6rem, min(1.9vw, 1.9vh), 0.95rem);
+  opacity: 0.6;
+}
+
+.tagline span + span::before {
+  content: '';
+  display: inline-block;
+  width: 0.35em;
+  height: 0.35em;
+  margin: 0 0.6em 0 0.35em;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+
+.footerItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--phosphor-text);
+  text-decoration: none;
+  font-family: var(--mono);
+}
+
+.footerLabel {
+  font-size: clamp(0.6rem, 2.4vw, 0.8rem);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.75;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.footerItem:hover .footerLabel,
+.footerItem:focus-visible .footerLabel {
+  opacity: 1;
+}
+
+.footerButton[aria-pressed='true'] .footerLabel {
+  color: var(--phosphor-green);
+  opacity: 1;
+}
+
+.footerButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+  border-radius: 8px;
+}
+
+.footer a,
+.footerButton {
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.footer a:hover,
+.footerButton:hover {
+  transform: translateY(-2px);
+}
+
+.footer a:focus-visible,
+.footerButton:focus-visible {
+  outline: 2px solid var(--phosphor-green);
+  outline-offset: 4px;
+}
+
+.footerButton[aria-pressed='true'] {
+  filter: drop-shadow(0 0 4px var(--phosphor-green)) drop-shadow(0 0 10px rgba(0, 255, 51, 0.6));
+  animation: glowPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  50% {
+    filter: drop-shadow(0 0 6px var(--phosphor-green)) drop-shadow(0 0 16px rgba(0, 255, 51, 0.8));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footerButton[aria-pressed='true'] {
+    animation: none;
+  }
+  .footer a,
+  .footerButton {
+    transition: none;
+  }
+}
+
 .footer img {
   color: white;
   fill: currentColor;
@@ -88,5 +204,12 @@
   .footerLink {
     width: 32px;
     height: 32px;
+  }
+  .footerLabel {
+    display: none;
+  }
+  .subtitle,
+  .tagline {
+    display: none;
   }
 }

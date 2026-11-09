@@ -1,0 +1,459 @@
+/* Projects page: phosphor-green terminal look shared with the chat (vars in ui/styles.module.css) */
+.projects {
+  box-sizing: border-box;
+  width: min(100%, 64rem);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--phosphor-dim) transparent;
+  color: var(--phosphor-text);
+  font-family: var(--mono);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 3vw, 1.75rem);
+  padding: 0.25rem 0 1.5rem;
+}
+
+/* Card: stacked on narrow screens, gallery beside content on wide ones */
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  padding: clamp(0.75rem, 2.5vw, 1.25rem);
+  border: 1px solid var(--phosphor-dim);
+  border-radius: 10px;
+  background: rgba(0, 255, 51, 0.03);
+  box-shadow: inset 0 0 24px rgba(0, 255, 51, 0.05);
+  animation: cardIn 0.35s ease-out both;
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (min-width: 900px) {
+  .card {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .card.noImages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.6vw, 1.5rem);
+  font-weight: normal;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: var(--phosphor-glow);
+  overflow-wrap: anywhere;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.dates {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  color: var(--phosphor-green);
+  opacity: 0.8;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--phosphor-dim);
+  border-radius: 999px;
+  color: var(--phosphor-green);
+  font-size: 0.8rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.chip:hover,
+.chip:focus-visible {
+  border-color: var(--phosphor-green);
+  box-shadow: var(--phosphor-glow);
+  outline: none;
+}
+
+.chipHost {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--phosphor-text);
+  opacity: 0.7;
+}
+
+.overview {
+  margin: 0;
+  line-height: 1.55;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+/* Expand panels */
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.panel {
+  border: 1px solid rgba(0, 255, 51, 0.2);
+  border-radius: 6px;
+}
+
+.panel summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+  color: var(--phosphor-green);
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel summary::before {
+  content: '▸';
+  transition: transform 0.2s ease;
+}
+
+.panel[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.panel summary:focus-visible {
+  outline: 2px solid var(--phosphor-green);
+  outline-offset: -2px;
+}
+
+.count {
+  margin-left: auto;
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
+.bullets {
+  margin: 0;
+  padding: 0 0.75rem 0.75rem 2rem;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.bullets li::marker {
+  color: var(--phosphor-green);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0.75rem 0.75rem;
+  list-style: none;
+}
+
+.tags li {
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(0, 255, 51, 0.1);
+  font-size: 0.8rem;
+}
+
+/* Gallery */
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.stageFrame {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #050a06;
+  border: 1px solid rgba(0, 255, 51, 0.2);
+}
+
+.mainButton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.imgWrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.imgWrap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.imgWrap[data-state='loaded'] img {
+  opacity: 1;
+}
+
+/* Shimmer skeleton while loading */
+.imgWrap[data-state='loading']::before,
+.skeletonCard {
+  background: linear-gradient(100deg, rgba(0, 255, 51, 0.04) 30%, rgba(0, 255, 51, 0.12) 50%, rgba(0, 255, 51, 0.04) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.imgWrap[data-state='loading']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+.mainImage img {
+  object-fit: contain;
+}
+
+.imgError {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--phosphor-dim);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--phosphor-dim);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--phosphor-green);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.nav:hover,
+.nav:focus-visible {
+  opacity: 1;
+  box-shadow: var(--phosphor-glow);
+  outline: none;
+}
+
+.prev {
+  left: 0.5rem;
+}
+
+.next {
+  right: 0.5rem;
+}
+
+.counter {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.thumbs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--phosphor-dim) transparent;
+  padding-bottom: 0.25rem;
+}
+
+.thumb {
+  flex: 0 0 auto;
+  width: clamp(3.5rem, 12vw, 4.5rem);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid rgba(0, 255, 51, 0.2);
+  border-radius: 5px;
+  overflow: hidden;
+  background: #050a06;
+  cursor: pointer;
+  scroll-snap-align: start;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.thumb:hover,
+.thumb:focus-visible {
+  opacity: 0.9;
+  outline: none;
+}
+
+.thumb[aria-current='true'] {
+  opacity: 1;
+  border-color: var(--phosphor-green);
+  box-shadow: var(--phosphor-glow);
+}
+
+/* Lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.5rem, 4vw, 3rem);
+  background: rgba(0, 0, 0, 0.92);
+  cursor: zoom-out;
+}
+
+.lightboxImage {
+  width: 100%;
+  height: 100%;
+}
+
+.lightboxImage img {
+  object-fit: contain;
+}
+
+.close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--phosphor-dim);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--phosphor-green);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* States */
+.skeletonCard {
+  height: clamp(16rem, 40vh, 22rem);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 51, 0.15);
+}
+
+.sentinel {
+  height: 1px;
+}
+
+.notice {
+  margin: 2rem auto;
+  text-align: center;
+  color: var(--phosphor-text);
+}
+
+.button {
+  margin-top: 0.75rem;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--phosphor-green);
+  border-radius: 6px;
+  background: none;
+  color: var(--phosphor-green);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .nav {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.2rem;
+  }
+}
+
+/* Short screens: keep the image from eating the whole height */
+@media (max-height: 500px) {
+  .stageFrame {
+    aspect-ratio: auto;
+    height: 60vh;
+  }
+  .card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .imgWrap[data-state='loading']::before,
+  .skeletonCard {
+    animation: none;
+  }
+}

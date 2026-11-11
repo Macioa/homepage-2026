@@ -3,12 +3,13 @@ import { authReducer, startChatAuth } from './auth'
 import { harnessReducer } from './harness'
 import { historyReducer } from './history'
 import { networkErrorHistoryReducer } from './networkErrors'
+import { linkedProject } from './projectLink'
 import { projectsReducer } from './projects'
 import { startUsagePolling, usageReducer } from './usage'
 
 const ui = createSlice({
   name: 'ui',
-  initialState: { ready: true, view: 'chat' as 'chat' | 'projects' },
+  initialState: { ready: true, view: (linkedProject() ? 'projects' : 'chat') as 'chat' | 'projects' },
   reducers: {
     // Footer projects button: opens the projects page, or returns to the chat when it is already open.
     toggleProjects: state => {

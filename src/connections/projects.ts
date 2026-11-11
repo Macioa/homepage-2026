@@ -22,6 +22,9 @@ export type Project = {
   image_urls?: string[]
   live_url?: string[]
   source_url?: string[]
+  vibe_and_test?: boolean
+  curated_generated_code?: boolean
+  hand_written_code?: boolean
 }
 
 export const fetchProjects = (token: string, onError: OnNetworkError, signal?: AbortSignal): Promise<Project[]> =>

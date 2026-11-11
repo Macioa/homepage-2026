@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../state/hooks'
-import { loadProjects, showMoreProjects } from '../../../state/projects'
+import { loadProjects, projectFocused, showMoreProjects } from '../../../state/projects'
 import { ProjectCard } from './ProjectCard'
 import style from './projects.module.css'
 
@@ -10,7 +10,7 @@ const PRELOAD_MARGIN = '400px 0px'
 export const Projects = () => {
   const dispatch = useAppDispatch()
   const open = useAppSelector(s => s.ui.view === 'projects')
-  const { items, visibleCount, status, error } = useAppSelector(s => s.projects)
+  const { items, visibleCount, status, error, focus } = useAppSelector(s => s.projects)
   const sentinel = useRef<HTMLDivElement>(null)
   const hasMore = visibleCount < items.length
 
@@ -30,6 +30,13 @@ export const Projects = () => {
     io.observe(el)
     return () => io.disconnect()
   }, [open, hasMore, visibleCount, dispatch])
+
+  // Project link: center the linked card once it is mounted, then forget the link.
+  useEffect(() => {
+    if (!open || !focus || status !== 'ready') return
+    document.getElementById(`project-${focus}`)?.scrollIntoView({ block: 'center' })
+    dispatch(projectFocused())
+  }, [open, focus, status, dispatch])
 
   if (!open) return null
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Project } from '../../../connections/projects'
+import { projectSlug } from '../../../state/projectLink'
 import { ImageGallery } from './ImageGallery'
 import { ProjectDates } from './ProjectDates'
 import style from './projects.module.css'
@@ -14,7 +15,27 @@ const PANELS: { key: keyof Project; label: string; tags?: boolean }[] = [
   { key: 'tools_used', label: 'Tools used', tags: true }
 ]
 
-const filled = (v: unknown): string[] => (Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()) : [])
+// Always-shown yes/no flags below the panels; a missing value reads as false.
+const FLAGS: { key: keyof Project; label: string }[] = [
+  { key: 'vibe_and_test', label: 'Vibe and test' },
+  { key: 'curated_generated_code', label: 'Curated generated code' },
+  { key: 'hand_written_code', label: 'Hand written code' }
+]
+
+const Flags = ({ project }: { project: Project }) => (
+  <ul className={style.flags}>
+    {FLAGS.map(({ key, label }) => {
+      const on = project[key] === true
+      return (
+        <li key={key} className={on ? style.flagOn : style.flagOff}>
+          <span aria-hidden='true'>{on ? '✓' : '✗'}</span> {label}
+        </li>
+      )
+    })}
+  </ul>
+)
+
+const filled =(v: unknown): string[] => (Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()) : [])
 
 const hostOf = (url: string) => {
   try {
@@ -54,7 +75,7 @@ export const ProjectCard = ({ project }: { project: Project }) => {
   const panels = PANELS.map(p => ({ ...p, values: filled(project[p.key]) })).filter(p => p.values.length)
   const images = filled(project.image_urls)
   return (
-    <article className={`${style.card} ${images.length ? '' : style.noImages}`}>
+    <article id={`project-${projectSlug(project.name)}`} className={`${style.card} ${images.length ? '' : style.noImages}`}>
       {images.length > 0 && <ImageGallery images={images} title={project.name} />}
       <div className={style.body}>
         <header className={style.cardHeader}>
@@ -89,6 +110,7 @@ export const ProjectCard = ({ project }: { project: Project }) => {
             ))}
           </div>
         )}
+        <Flags project={project} />
       </div>
     </article>
   )

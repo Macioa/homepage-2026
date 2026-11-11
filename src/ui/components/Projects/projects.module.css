@@ -511,3 +511,20 @@
 .inlineLink:focus-visible {
   text-shadow: var(--phosphor-glow);
 }
+
+.flags {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.flagOn {
+  color: #3ddc84;
+}
+
+.flagOff {
+  color: #ff5555;
+}

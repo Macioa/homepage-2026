@@ -10,9 +10,11 @@ const send = (prompt: string, signal: AbortSignal) => runHarness({ prompt, store
 // the projects page is open so the conversation survives the round trip.
 export const Chat = () => {
   const hidden = useAppSelector(s => s.ui.view !== 'chat')
+  // No chat token yet: no onSend, so Send (button and Enter) stays disabled instead of failing with no data access.
+  const ready = useAppSelector(s => Boolean(s.auth.token))
   return (
     <section id='chat' className={style.chat} hidden={hidden}>
-      <ChatScreen onSend={send} usage={useGeminiUsage()} />
+      <ChatScreen onSend={ready ? send : undefined} usage={useGeminiUsage()} />
     </section>
   )
 }

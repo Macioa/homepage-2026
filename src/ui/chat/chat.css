@@ -728,3 +728,53 @@
   outline: none;
   box-shadow: inset 0 1px 2px #5d5747, 0 0 8px var(--llm-green), 0 0 16px var(--llm-green);
 }
+
+/* Input / output panels with an expand toggle; expanded fills the viewport above everything (footer is z 60). */
+.llm .panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.llm .panel-input {
+  flex: none;
+}
+.llm .panel-output {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.llm button.expand {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 3;
+  flex: none;
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.6);
+}
+.llm .panel-output button.expand {
+  top: 10px;
+  right: 10px;
+}
+.llm .panel.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  box-sizing: border-box;
+  padding: clamp(10px, 2vw, 18px);
+  background: #000;
+}
+.llm .panel-input.expanded .prompt {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.llm .panel-input.expanded textarea {
+  height: 100%;
+  max-height: none;
+  resize: none;
+}

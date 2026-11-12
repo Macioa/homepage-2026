@@ -120,6 +120,28 @@ export default function Chat({
   const [speaking, setSpeaking] = useState(false);
   const [volume, setVolume] = useState(1);
   const [speechSupported] = useState(canSpeak);
+  // Which panel fills the screen: null | "input" | "output".
+  const [expanded, setExpanded] = useState(null);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e) => e.key === "Escape" && setExpanded(null);
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [expanded]);
+  const panelClass = (name) =>
+    expanded === name ? "panel panel-" + name + " expanded" : "panel panel-" + name;
+  const expandButton = (name, label) => (
+    <button
+      type="button"
+      className="expand"
+      onClick={() => setExpanded(expanded === name ? null : name)}
+      aria-pressed={expanded === name}
+      aria-label={expanded === name ? `Collapse ${label}` : `Expand ${label}`}
+      title={expanded === name ? "Collapse (Esc)" : "Expand"}
+    >
+      {expanded === name ? "⤡" : "⤢"}
+    </button>
+  );
   const canMic =
     Boolean(onTranscribe) &&
     micSupported &&
@@ -264,6 +286,7 @@ export default function Chat({
   async function send() {
     if (!prompt.trim() || !canSend) return;
     clearInterval(typeTimer.current);
+    setExpanded((e) => (e === "input" ? null : e));
     if (speechSupported) stopSpeaking();
     setReply("");
     setStatus("running");
@@ -284,6 +307,8 @@ export default function Chat({
       <div className="progress">
         <PixelBar label="Throttle" value={usage.used} max={usage.limit} />
       </div>
+      <div className={panelClass("input")}>
+      {expandButton("input", "prompt")}
       <PromptInput
         rows={4}
         value={prompt}
@@ -313,6 +338,9 @@ export default function Chat({
           Stop
         </button>
       </div>
+      </div>
+      <div className={panelClass("output")}>
+      {expandButton("output", "reply")}
       <CrtFrame
         control={
           speechSupported && (
@@ -353,6 +381,7 @@ export default function Chat({
           )}
         </pre>
       </CrtFrame>
+      </div>
       <div className="progress">
         <PixelBar label="Loop" hideLabel value={loopProgress(status)} />
       </div>

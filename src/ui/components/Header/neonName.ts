@@ -19,22 +19,46 @@ const HALOS: [number, number][] = [
 ]
 
 // Letter physics: each glyph is a cannon body pulled to its home slot by a spring, so it flies in,
-// wobbles, and can be knocked by the pointer, then settles back into the name.
+// wobbles, then settles into the name.
 const SPRING_K = 60
 const SPRING_DAMP = 7
 const UPRIGHT_K = 28
 
+// Loose letter: every 13s one letter on the sign wobbles a little, 2s later wobbles more, 2s after
+// that comes loose and falls down the page, piling up on the bottom of the viewport.
+const LOOSE_EVERY_MS = 13_000
+const LOOSE_STEP_MS = 2_000
+const HOVER_SPEEDUP = 3
+const WOBBLE_HZ = 3
+const WOBBLE_SMALL = 0.08 // radians
+const WOBBLE_BIG = 0.25
+const GRAVITY = 16
+// Lights out on a dropped letter: sputter for a moment, then stay dark (faint dead tube).
+const SPUTTER_MS = 700
+const DEAD_GLOW = 0.06
+
+type Stage = 'sign' | 'wobble' | 'shake' | 'fallen'
 type Glow = { core: THREE.MeshBasicMaterial; halos: THREE.MeshBasicMaterial[] }
-type Letter = { mesh: THREE.Mesh; body: CANNON.Body; home: CANNON.Vec3; glow: Glow }
+type Letter = {
+  mesh: THREE.Mesh
+  body: CANNON.Body
+  slot: number // x offset from the sign's center, in letter units
+  home: CANNON.Vec3
+  glow: Glow
+  stage: Stage
+  stageAt: number
+}
 
 const haloMaterial = (opacity: number) =>
   new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false })
 
 // Sets a letter's brightness (1 = normal, near 0 = tube flickering off).
 const setGlow = ({ core, halos }: Glow, level: number) => {
-  core.color.copy(NEON).lerp(CORE, Math.min(level, 1) * 0.42)
+  core.color.copy(NEON).lerp(CORE, Math.min(level, 1) * 0.42).multiplyScalar(Math.min(level, 1))
   halos.forEach((m, i) => (m.opacity = HALOS[i][1] * level))
 }
+
+const backing = new THREE.MeshStandardMaterial({ color: 0x140b10, roughness: 0.6, metalness: 0.3 })
 
 // One letter: dark extruded body (the sign's backing) with neon tubes traced along its outlines.
 const buildLetter = (font: Font, ch: string, glow: Glow) => {
@@ -54,42 +78,66 @@ const buildLetter = (font: Font, ch: string, glow: Glow) => {
   return { mesh, size: geometry.boundingBox!.getSize(new THREE.Vector3()) }
 }
 
-const backing = new THREE.MeshStandardMaterial({ color: 0x140b10, roughness: 0.6, metalness: 0.3 })
-
-// Mounts an extruded neon rendering of `text` into `host`, refit to the host on resize. Returns cleanup.
-export const mountNeonName = (host: HTMLElement, text: string) => {
+// Renders `text` as a neon sign on a transparent full-viewport overlay, placed over `slot` (the
+// header's reserved space) so loose letters can fall down the whole page. Returns cleanup.
+export const mountNeonName = (slot: HTMLElement, text: string) => {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const renderer = new THREE.WebGLRenderer({ antialias: true })
-  renderer.setClearColor(0x000000, 1)
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  renderer.setClearColor(0x000000, 0)
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
-  renderer.domElement.setAttribute('aria-hidden', 'true')
-  host.appendChild(renderer.domElement)
+  const canvas = renderer.domElement
+  canvas.setAttribute('aria-hidden', 'true')
+  Object.assign(canvas.style, { position: 'fixed', inset: '0', width: '100vw', height: '100dvh', pointerEvents: 'none', zIndex: '50' })
+  // Inside the app container (its own stacking context) so the footer can sit above it.
+  const layer = slot.offsetParent ?? document.body
+  layer.appendChild(canvas)
 
   const scene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 200)
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 500)
   scene.add(new THREE.AmbientLight(0xffffff, 0.2))
-  const fill = new THREE.PointLight(0xff3399, 6, 30)
-  fill.position.set(0, 0, 4)
+  const fill = new THREE.PointLight(0xff3399, 6, 0, 0)
   scene.add(fill)
 
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0, 0, 0) })
+  // Floor at the bottom of the viewport plus side walls, so dropped letters pile up on screen.
+  const bounds = (normal: CANNON.Vec3) => {
+    const body = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() })
+    body.quaternion.setFromVectors(new CANNON.Vec3(0, 0, 1), normal)
+    world.addBody(body)
+    return body
+  }
+  const floor = bounds(new CANNON.Vec3(0, 1, 0))
+  const leftWall = bounds(new CANNON.Vec3(1, 0, 0))
+  const rightWall = bounds(new CANNON.Vec3(-1, 0, 0))
+
   const letters: Letter[] = []
   let textWidth = 1
 
+  // Camera framing: world units per CSS pixel chosen so the sign fills the header slot; the rest of
+  // the viewport maps to the same scale so the floor sits at the bottom of the page.
   const fit = () => {
-    const w = host.clientWidth
-    const h = host.clientHeight
-    if (!w || !h) return
+    const w = innerWidth
+    const h = innerHeight
+    const r = slot.getBoundingClientRect()
+    if (!w || !h || !r.width || !r.height) return
     renderer.setSize(w, h, false)
     camera.aspect = w / h
-    const half = Math.tan(THREE.MathUtils.degToRad(FOV / 2))
-    const byWidth = (textWidth * 0.52) / (half * camera.aspect)
-    const byHeight = (SIZE * 0.75) / half
-    camera.position.set(0, 0, Math.max(byWidth, byHeight) + DEPTH)
+    const perPx = Math.max(textWidth / (r.width * 0.96), (SIZE * 1.5) / r.height)
+    const distance = (perPx * h) / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2))
+    camera.position.set(0, 0, distance)
     camera.updateProjectionMatrix()
+    fill.position.set(0, 0, distance * 0.3)
+
+    const toWorld = (x: number, y: number) => [(x - w / 2) * perPx, -(y - h / 2) * perPx]
+    const [cx, cy] = toWorld(r.left + r.width / 2, r.top + r.height / 2)
+    for (const l of letters) l.home.set(cx + l.slot, cy, 0)
+    floor.position.set(0, -(h / 2) * perPx, 0)
+    leftWall.position.set(-(w / 2) * perPx, 0, 0)
+    rightWall.position.set((w / 2) * perPx, 0, 0)
   }
+  addEventListener('resize', fit)
   const resize = new ResizeObserver(fit)
-  resize.observe(host)
+  resize.observe(slot)
 
   let disposed = false
   new FontLoader().load(FONT_URL, font => {
@@ -103,46 +151,73 @@ export const mountNeonName = (host: HTMLElement, text: string) => {
       setGlow(glow, 1)
       const { mesh, size } = buildLetter(font, ch, glow)
       scene.add(mesh)
-
-      const home = new CANNON.Vec3(-textWidth / 2 + advance * (i + 0.5), 0, 0)
       const body = new CANNON.Body({ mass: 1, linearDamping: 0.2, angularDamping: 0.5 })
       body.addShape(new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)))
+      world.addBody(body)
+      letters.push({ mesh, body, slot: -textWidth / 2 + advance * (i + 0.5), home: new CANNON.Vec3(), glow, stage: 'sign', stageAt: 0 })
+    })
+    fit()
+    for (const { body, home } of letters) {
       if (reducedMotion) body.position.copy(home)
       else {
         body.position.set(home.x + (Math.random() - 0.5) * 3, home.y + 4 + Math.random() * 6, (Math.random() - 0.5) * 4)
         body.quaternion.setFromEuler(Math.random() * 3, Math.random() * 3, Math.random() * 3)
       }
-      world.addBody(body)
-      letters.push({ mesh, body, home, glow })
-    })
-    fit()
+    }
   })
 
-  // Pointer knocks the letter under it along the view ray (harder on click/tap).
+  // Hovering a letter still on the sign starts its loosening sequence, or runs it faster if it has
+  // already started. Fallen letters ignore the pointer. Listens on the window because the overlay
+  // ignores pointer events so the page underneath stays usable.
   const ray = new THREE.Raycaster()
   const ndc = new THREE.Vector2()
+  let hovered: Letter | undefined
   const onPointer = (e: PointerEvent) => {
     if (reducedMotion) return
-    const r = renderer.domElement.getBoundingClientRect()
-    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
+    ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
     ray.setFromCamera(ndc, camera)
-    const hit = ray.intersectObjects(letters.map(l => l.mesh), false)[0]
-    const letter = hit && letters.find(l => l.mesh === hit.object)
-    if (!letter) return
-    const strength = e.type === 'pointerdown' ? 6 : 1.5
-    const d = ray.ray.direction
-    letter.body.applyImpulse(
-      new CANNON.Vec3(d.x * strength, d.y * strength + strength * 0.3, d.z * strength),
-      new CANNON.Vec3(hit.point.x, hit.point.y, hit.point.z)
-    )
+    const onSign = letters.filter(l => l.stage !== 'fallen')
+    const hit = ray.intersectObjects(onSign.map(l => l.mesh), false)[0]
+    hovered = hit && onSign.find(l => l.mesh === hit.object)
+    if (hovered?.stage === 'sign') Object.assign(hovered, { stage: 'wobble', stageAt: elapsed })
   }
-  renderer.domElement.addEventListener('pointermove', onPointer)
-  renderer.domElement.addEventListener('pointerdown', onPointer)
+  const onLeave = () => (hovered = undefined)
+  addEventListener('pointermove', onPointer)
+  document.documentElement.addEventListener('pointerleave', onLeave)
+
+  // Every LOOSE_EVERY_MS of animation time, start loosening a random letter still on the sign.
+  // Runs on animation time so it pauses with rendering (e.g. hidden tab) instead of piling up.
+  let elapsed = 0
+  const loosen = (prev: number, now: number) => {
+    if (reducedMotion || Math.floor(now / LOOSE_EVERY_MS) === Math.floor(prev / LOOSE_EVERY_MS)) return
+    const onSign = letters.filter(l => l.stage === 'sign')
+    const letter = onSign[Math.floor(Math.random() * onSign.length)]
+    if (letter) Object.assign(letter, { stage: 'wobble', stageAt: now })
+  }
 
   const toHome = new CANNON.Vec3()
   const axis = new CANNON.Vec3()
   const step = (dt: number, t: number) => {
-    for (const { body, home } of letters) {
+    for (const letter of letters) {
+      const { body, home } = letter
+      // Hovered: the loosening sequence runs HOVER_SPEEDUP times faster.
+      if (letter === hovered && (letter.stage === 'wobble' || letter.stage === 'shake')) letter.stageAt -= dt * 1000 * (HOVER_SPEEDUP - 1)
+      const since = elapsed - letter.stageAt
+      if (letter.stage === 'wobble' && since >= LOOSE_STEP_MS) Object.assign(letter, { stage: 'shake', stageAt: elapsed })
+      else if (letter.stage === 'shake' && since >= LOOSE_STEP_MS) {
+        Object.assign(letter, { stage: 'fallen', stageAt: elapsed })
+        // Fall and pile in the page plane: slide in x/y, spin only around the view axis.
+        body.linearFactor.set(1, 1, 0)
+        body.angularFactor.set(0, 0, 1)
+        body.velocity.z = 0
+        body.position.z = 0
+        body.angularVelocity.set(0, 0, body.angularVelocity.z + (Math.random() - 0.5) * 4)
+      }
+
+      if (letter.stage === 'fallen') {
+        body.applyForce(new CANNON.Vec3(0, -GRAVITY * body.mass, 0))
+        continue
+      }
       home.vsub(body.position, toHome)
       body.applyForce(toHome.scale(SPRING_K).vsub(body.velocity.scale(SPRING_DAMP)))
       // Upright torque toward identity rotation.
@@ -150,13 +225,22 @@ export const mountNeonName = (host: HTMLElement, text: string) => {
       const sign = q.w < 0 ? -1 : 1
       axis.set(q.x * sign, q.y * sign, q.z * sign)
       body.torque.vadd(axis.scale(-UPRIGHT_K).vsub(body.angularVelocity.scale(1.5)), body.torque)
+      // Loose letter: rock around the view axis (angle amplitude = WOBBLE_*), overriding the upright pull.
+      if (letter.stage !== 'sign') {
+        const omega = 2 * Math.PI * WOBBLE_HZ
+        const amp = letter.stage === 'wobble' ? WOBBLE_SMALL : WOBBLE_BIG
+        body.angularVelocity.z = amp * omega * Math.cos((omega * (elapsed - letter.stageAt)) / 1000)
+      }
     }
     world.step(1 / 60, dt, 3)
-    for (const { mesh, body, glow } of letters) {
+    for (const { mesh, body, glow, stage, stageAt } of letters) {
       mesh.position.set(body.position.x, body.position.y, body.position.z)
       mesh.quaternion.set(body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w)
       // Neon tube hum, with a rare brief flicker per letter.
-      setGlow(glow, !reducedMotion && Math.random() < 0.002 ? 0.15 : 1 + Math.sin(t * 3 + body.id) * 0.06)
+      if (stage === 'fallen') {
+        const since = elapsed - stageAt
+        setGlow(glow, since < SPUTTER_MS && Math.random() < 0.5 ? 0.7 * (1 - since / SPUTTER_MS) : DEAD_GLOW)
+      } else setGlow(glow, !reducedMotion && Math.random() < 0.002 ? 0.15 : 1 + Math.sin(t * 3 + body.id) * 0.06)
     }
   }
 
@@ -164,6 +248,9 @@ export const mountNeonName = (host: HTMLElement, text: string) => {
   renderer.setAnimationLoop(now => {
     const dt = Math.min((now - last) / 1000, 0.1)
     last = now
+    const prev = elapsed
+    elapsed += dt * 1000
+    loosen(prev, elapsed)
     step(dt, now / 1000)
     renderer.render(scene, camera)
   })
@@ -172,12 +259,15 @@ export const mountNeonName = (host: HTMLElement, text: string) => {
     disposed = true
     renderer.setAnimationLoop(null)
     resize.disconnect()
+    removeEventListener('resize', fit)
+    removeEventListener('pointermove', onPointer)
+    document.documentElement.removeEventListener('pointerleave', onLeave)
     for (const { mesh, glow } of letters) {
       mesh.traverse(o => (o as THREE.Mesh).geometry?.dispose())
       glow.core.dispose()
       glow.halos.forEach(m => m.dispose())
     }
     renderer.dispose()
-    renderer.domElement.remove()
+    canvas.remove()
   }
 }

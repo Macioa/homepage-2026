@@ -55,12 +55,6 @@
   height: calc(min(calc((90vw - 30px) / 8.25), 16vh) * 1.3);
 }
 
-.neonName canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: pan-y;
-}
 
 .stage {
   flex: 1 1 auto;
@@ -81,6 +75,9 @@
 }
 
 .footer {
+  /* above the neon overlay (z-index 50) so fallen letters never cover the links */
+  position: relative;
+  z-index: 60;
   flex: none;
   width: 100%;
   padding: clamp(0.75rem, 3vh, 2rem) 0;

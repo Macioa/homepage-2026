@@ -8,6 +8,7 @@ import { Stage } from './ui/components/Stage'
 import { Chat } from './ui/components/Chat'
 import { Footer } from './ui/components/Footer'
 import { Projects } from './ui/components/Projects'
+import { Intro } from './ui/components/Intro'
 
 import styles from './ui/styles.module.css'
 
@@ -21,6 +22,7 @@ if (Root)
           <Stage className={styles.stage}>
             <Chat />
             <Projects />
+            <Intro />
           </Stage>
           <Footer />
         </div>

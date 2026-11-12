@@ -1,13 +1,22 @@
+import { useEffect, useRef } from 'react'
 import style from '../../styles.module.css'
+import { mountNeonName } from './neonName'
 
-export const Header = () => (
-  <header className={style.header}>
-    <h1 className={style.name}>Ryan Montgomery</h1>
-    <p className={style.subtitle}>Software Engineering</p>
-    <p className={style.tagline}>
-      {['Web', 'Distributed', 'Data', 'Agentic'].map(t => (
-        <span key={t}>{t}</span>
-      ))}
-    </p>
-  </header>
-)
+const NAME = 'Ryan Montgomery'
+
+export const Header = () => {
+  const neon = useRef<HTMLDivElement>(null)
+  useEffect(() => (neon.current ? mountNeonName(neon.current, NAME) : undefined), [])
+  return (
+    <header className={style.header}>
+      <h1 className={style.srOnly}>{NAME}</h1>
+      <div ref={neon} className={style.neonName} />
+      <p className={style.subtitle}>Software Engineering</p>
+      <p className={style.tagline}>
+        {['Web', 'Distributed', 'Data', 'Agentic'].map(t => (
+          <span key={t}>{t}</span>
+        ))}
+      </p>
+    </header>
+  )
+}

@@ -34,7 +34,8 @@ export const Intro = () => {
         <div className={style.backdrop}>
           <div className={style.dialog} role='dialog' aria-modal='true' aria-labelledby='disclaimer-title'>
             <h2 id='disclaimer-title'>Disclaimer</h2>
-            <p>Disclaimer text coming soon.</p>
+            <p>I&apos;m not tracking your visit or your chat, but Google and Netlify are. This site doesn&apos;t keep cookies.</p>
+            <p>Thanks for coming. I hope you enjoy.</p>
             <button type='button' autoFocus onClick={() => setAccepted(true)}>
               OK
             </button>

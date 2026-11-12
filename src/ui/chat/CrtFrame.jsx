@@ -62,7 +62,8 @@ function pickModel() {
   return keys[Math.floor(Math.random() * keys.length)];
 }
 
-export default function CrtFrame({ children }) {
+// control: a real button set into the chin, just before the power LED (the reply speaker).
+export default function CrtFrame({ children, control = null }) {
   const [model] = useState(pickModel);
   const Controls = MODELS[model];
   return (
@@ -71,8 +72,11 @@ export default function CrtFrame({ children }) {
         <div className="crt-recess">
           <div className="crt-screen">{children}</div>
         </div>
-        <div className="crt-chin" aria-hidden="true">
-          <Controls />
+        <div className="crt-chin">
+          <span className="crt-controls" aria-hidden="true">
+            <Controls />
+          </span>
+          {control}
         </div>
       </div>
       {model === "d" && <div className="crt-stand" aria-hidden="true" />}

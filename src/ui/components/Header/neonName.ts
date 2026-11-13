@@ -58,6 +58,25 @@ const setGlow = ({ core, halos }: Glow, level: number) => {
   halos.forEach((m, i) => (m.opacity = HALOS[i][1] * level))
 }
 
+// Unlit tube once the sputter ends: dark purple glass, lit only by the scene lights.
+const DEAD_TUBE = new THREE.MeshPhysicalMaterial({
+  color: 0x2a0d3d, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, transparent: true, opacity: 0.8,
+})
+
+// Hides the letter's solid backing while its child tubes still render.
+const NO_BACKING = new THREE.MeshBasicMaterial({ visible: false })
+
+// Swaps a letter's glowing tubes for plain glass and hides the additive halos (no fuzz).
+const goDark = (mesh: THREE.Mesh, { core, halos }: Glow) => {
+  mesh.userData.dark = true
+  mesh.material = NO_BACKING
+  mesh.children.forEach(c => {
+    const tube = c as THREE.Mesh
+    if (tube.material === core) tube.material = DEAD_TUBE
+    else if (halos.includes(tube.material as THREE.MeshBasicMaterial)) tube.visible = false
+  })
+}
+
 const backing = new THREE.MeshStandardMaterial({ color: 0x140b10, roughness: 0.6, metalness: 0.3 })
 
 // One letter: dark extruded body (the sign's backing) with neon tubes traced along its outlines.
@@ -239,7 +258,9 @@ export const mountNeonName = (slot: HTMLElement, text: string) => {
       // Neon tube hum, with a rare brief flicker per letter.
       if (stage === 'fallen') {
         const since = elapsed - stageAt
-        setGlow(glow, since < SPUTTER_MS && Math.random() < 0.5 ? 0.7 * (1 - since / SPUTTER_MS) : DEAD_GLOW)
+        if (since >= SPUTTER_MS) {
+          if (!mesh.userData.dark) goDark(mesh, glow)
+        } else setGlow(glow, Math.random() < 0.5 ? 0.7 * (1 - since / SPUTTER_MS) : DEAD_GLOW)
       } else setGlow(glow, !reducedMotion && Math.random() < 0.002 ? 0.15 : 1 + Math.sin(t * 3 + body.id) * 0.06)
     }
   }

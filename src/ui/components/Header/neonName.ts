@@ -36,6 +36,9 @@ const GRAVITY = 16
 // Lights out on a dropped letter: sputter for a moment, then stay dark (faint dead tube).
 const SPUTTER_MS = 700
 const DEAD_GLOW = 0.06
+// Letters that have reached the floor shatter into glass shards when any falling letter hits them.
+const SHARDS = 18
+const SHARD_LIFE_MS = 1400
 
 type Stage = 'sign' | 'wobble' | 'shake' | 'fallen'
 type Glow = { core: THREE.MeshBasicMaterial; halos: THREE.MeshBasicMaterial[] }
@@ -47,7 +50,10 @@ type Letter = {
   glow: Glow
   stage: Stage
   stageAt: number
+  settled?: boolean
+  shatter?: boolean
 }
+type Shard = { mesh: THREE.Mesh; vel: THREE.Vector3; spin: THREE.Vector3; born: number }
 
 const haloMaterial = (opacity: number) =>
   new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false })
@@ -130,6 +136,9 @@ export const mountNeonName = (slot: HTMLElement, text: string) => {
   const rightWall = bounds(new CANNON.Vec3(-1, 0, 0))
 
   const letters: Letter[] = []
+  const shards: Shard[] = []
+  const shardMaterial = DEAD_TUBE.clone()
+  shardMaterial.color.set(0x5a2a7a)
   let textWidth = 1
 
   // Camera framing: world units per CSS pixel chosen so the sign fills the header slot; the rest of
@@ -173,7 +182,14 @@ export const mountNeonName = (slot: HTMLElement, text: string) => {
       const body = new CANNON.Body({ mass: 1, linearDamping: 0.2, angularDamping: 0.5 })
       body.addShape(new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)))
       world.addBody(body)
-      letters.push({ mesh, body, slot: -textWidth / 2 + advance * (i + 0.5), home: new CANNON.Vec3(), glow, stage: 'sign', stageAt: 0 })
+      const letter: Letter = { mesh, body, slot: -textWidth / 2 + advance * (i + 0.5), home: new CANNON.Vec3(), glow, stage: 'sign', stageAt: 0 }
+      letters.push(letter)
+      // A letter on the floor hit by any still-falling letter is queued to shatter (after the step).
+      body.addEventListener('collide', (e: { body: CANNON.Body }) => {
+        if (letter.stage === 'fallen' && e.body === floor) letter.settled = true
+        const other = letters.find(l => l.body === e.body)
+        if (letter.settled && other && !other.settled && other.stage === 'fallen') letter.shatter = true
+      })
     })
     fit()
     for (const { body, home } of letters) {
@@ -214,6 +230,55 @@ export const mountNeonName = (slot: HTMLElement, text: string) => {
     if (letter) Object.assign(letter, { stage: 'wobble', stageAt: now })
   }
 
+  // Replaces a letter with small glass shards that burst out, fall, and fade.
+  const shatter = (letter: Letter) => {
+    letters.splice(letters.indexOf(letter), 1)
+    world.removeBody(letter.body)
+    scene.remove(letter.mesh)
+    letter.mesh.traverse(o => (o as THREE.Mesh).geometry?.dispose())
+    letter.glow.core.dispose()
+    letter.glow.halos.forEach(m => m.dispose())
+    const box = new THREE.Box3().setFromObject(letter.mesh)
+    const size = box.getSize(new THREE.Vector3())
+    for (let i = 0; i < SHARDS; i++) {
+      const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.05 + Math.random() * 0.1), shardMaterial)
+      mesh.position.set(
+        letter.mesh.position.x + (Math.random() - 0.5) * size.x,
+        letter.mesh.position.y + (Math.random() - 0.5) * size.y,
+        (Math.random() - 0.5) * 0.2,
+      )
+      scene.add(mesh)
+      const vel = new THREE.Vector3((Math.random() - 0.5) * 6, 2 + Math.random() * 5, (Math.random() - 0.5) * 2)
+      const spin = new THREE.Vector3(Math.random(), Math.random(), Math.random()).multiplyScalar(12)
+      shards.push({ mesh, vel, spin, born: elapsed })
+    }
+  }
+
+  const stepShards = (dt: number) => {
+    const floorY = floor.position.y
+    for (let i = shards.length - 1; i >= 0; i--) {
+      const s = shards[i]
+      const age = elapsed - s.born
+      if (age >= SHARD_LIFE_MS) {
+        scene.remove(s.mesh)
+        s.mesh.geometry.dispose()
+        shards.splice(i, 1)
+        continue
+      }
+      s.vel.y -= GRAVITY * dt
+      s.mesh.position.addScaledVector(s.vel, dt)
+      if (s.mesh.position.y < floorY) {
+        s.mesh.position.y = floorY
+        s.vel.y *= -0.3
+        s.vel.x *= 0.6
+      }
+      s.mesh.rotation.x += s.spin.x * dt
+      s.mesh.rotation.y += s.spin.y * dt
+      s.mesh.rotation.z += s.spin.z * dt
+      s.mesh.scale.setScalar(1 - Math.max(0, age - SHARD_LIFE_MS * 0.6) / (SHARD_LIFE_MS * 0.4))
+    }
+  }
+
   const toHome = new CANNON.Vec3()
   const axis = new CANNON.Vec3()
   const step = (dt: number, t: number) => {
@@ -252,6 +317,8 @@ export const mountNeonName = (slot: HTMLElement, text: string) => {
       }
     }
     world.step(1 / 60, dt, 3)
+    for (const letter of letters.filter(l => l.shatter)) shatter(letter)
+    stepShards(dt)
     for (const { mesh, body, glow, stage, stageAt } of letters) {
       mesh.position.set(body.position.x, body.position.y, body.position.z)
       mesh.quaternion.set(body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w)
@@ -288,6 +355,8 @@ export const mountNeonName = (slot: HTMLElement, text: string) => {
       glow.core.dispose()
       glow.halos.forEach(m => m.dispose())
     }
+    shards.forEach(s => s.mesh.geometry.dispose())
+    shardMaterial.dispose()
     renderer.dispose()
     canvas.remove()
   }

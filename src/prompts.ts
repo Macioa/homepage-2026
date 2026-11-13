@@ -24,6 +24,10 @@ Keys: ${keys.join(', ')}`
 
 export const FINAL_REPLY = 'Write the final reply to the visitor from the data above. Plain text, no tool calls.'
 
+// search_skills result: the label, related-skills total included, is the answer.
+export const SKILL_LABEL_REPLY = (label: string) =>
+  `Years used (skill + related skills total): ${label}. Answer now with both parts, shaped "<skill>: <n> years, plus <total> years total with other <group> (<examples>)."`
+
 export const TOKEN_NOT_READY = 'Data access not ready. Try again.'
 
 export const TOOL = {
@@ -35,6 +39,7 @@ export const TOOL = {
   getAllSkills: 'list the names of all Ryan skills in order by significance',
   getSkill: 'look up one Ryan skill and how long he used it',
   getSkills: 'look up several Ryan skills and how long he used each',
+  searchSkills: 'fuzzy search one Ryan skill by name: years used, plus total years in related skills. Reply with its label as is',
   getAllPitches: 'list slug, title and when to use every Ryan pitch, no text',
   getPitches: 'read Ryan pitch text by exact slugs from get_all_pitches, no skills or evidence',
   pitchDetail: 'read Ryan pitches with skills and evidence by exact slugs (list them with graphql_query pitchCatalogCollection)',
@@ -73,6 +78,7 @@ export const TOOL_ARG = {
   query: 'keywords, e.g. react',
   skill: 'skill name, e.g. React',
   skills: 'skill names, e.g. ["React","Go"]',
+  skillSearch: 'skill name or partial name, e.g. react or postgre',
   slugs: 'pitch slugs',
   faqSlug: 'FAQ slug',
   faqSlugs: 'FAQ slugs',

@@ -1,14 +1,15 @@
 // Supabase tools: Postgres functions the chat role may run, called through PostgREST with the redux chat JWT.
 
 import { z } from 'zod'
-import { callRpc, DataAccessError } from '../connections/supabase'
-import { TOKEN_NOT_READY, TOOL, TOOL_ARG } from '../prompts'
+import { callEdgeFunction, callRpc, DataAccessError } from '../connections/supabase'
+import { SKILL_LABEL_REPLY, TOKEN_NOT_READY, TOOL, TOOL_ARG } from '../prompts'
 import type { DataTool, ToolContext } from './tool'
 
 const mode = z.enum(['precise', 'start_to_end']).describe(TOOL_ARG.mode)
 
 const skillArgs = z.object({ skill: z.string().describe(TOOL_ARG.skill), mode: mode.optional() })
 const skillsArgs = z.object({ skills: z.array(z.string()).describe(TOOL_ARG.skills), mode: mode.optional() })
+const searchArgs = z.object({ query: z.string().min(1).describe(TOOL_ARG.skillSearch) })
 const pitchesArgs = z.object({ slugs: z.array(z.string()).describe(TOOL_ARG.slugs) })
 const pitchArgs = pitchesArgs.extend({ mode })
 const faqArgs = z.object({ slug: z.string().describe(TOOL_ARG.faqSlug) })
@@ -29,6 +30,11 @@ const READ_ONLY = 'Read only: mutations are not allowed.'
 async function rpc(fn: string, args: Record<string, unknown>, { token, signal, onError }: ToolContext) {
   if (!token) throw new DataAccessError(TOKEN_NOT_READY)
   return callRpc(fn, args, token, onError, signal)
+}
+
+async function edgeFunction(fn: string, args: Record<string, unknown>, { token, signal, onError }: ToolContext) {
+  if (!token) throw new DataAccessError(TOKEN_NOT_READY)
+  return callEdgeFunction(fn, args, token, onError, signal)
 }
 
 // Names of every Ryan skill (public.get_all_skills).
@@ -58,6 +64,67 @@ export const getSkills: DataTool<typeof skillsArgs> = {
   description: TOOL.getSkills,
   args: skillsArgs,
   run: ({ skills, mode }, ctx) => rpc('get_skills', { p_skills: skills, ...(mode && { p_mode: mode }) }, ctx)
+}
+
+const MAX_MATCHES = 5
+const MIN_SCORE = 0.6
+
+const normalize = (text: string) => text.toLowerCase().replace(/[^a-z0-9+#]/g, '')
+
+function editDistance(a: string, b: string) {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    for (let j = 1; j <= b.length; j++) row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = row
+  }
+  return prev[b.length]
+}
+
+// 1 = exact, 0.9 = one contains the other, else edit-distance similarity.
+function similarity(query: string, name: string) {
+  const q = normalize(query)
+  const n = normalize(name)
+  if (!q || !n) return 0
+  if (q === n) return 1
+  if (n.includes(q) || q.includes(n)) return 0.9
+  return 1 - editDistance(q, n) / Math.max(q.length, n.length)
+}
+
+// get_all_skills rows may be names or { name } objects.
+const skillName = (row: unknown) => (typeof row === 'string' ? row : (row as { name?: unknown })?.name)
+
+// get_all_skills returns { msg, res: [...] }; a bare array is accepted too.
+const skillRows = (all: unknown): unknown[] =>
+  Array.isArray(all) ? all : Array.isArray((all as { res?: unknown })?.res) ? (all as { res: unknown[] }).res : []
+
+export function matchSkills(query: string, names: string[]) {
+  return names
+    .map(name => ({ name, score: similarity(query, name) }))
+    .filter(match => match.score >= MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_MATCHES)
+    .map(match => match.name)
+}
+
+// Fuzzy name search over get_all_skills; the best match (else the query as typed) goes to public.search_skills
+// through the embed-skill edge function, which labels it "PostgreSQL (3) + Other databases (..., total 9)".
+export const searchSkills: DataTool<typeof searchArgs> = {
+  kind: 'data',
+  name: 'search_skills',
+  description: TOOL.searchSkills,
+  args: searchArgs,
+  examplePrompt: 'How long has Ryan worked with distributed systems?',
+  run: async ({ query }, ctx) => {
+    const all = await rpc('get_all_skills', {}, ctx)
+    const names = skillRows(all).map(skillName).filter((name): name is string => typeof name === 'string')
+    const [best] = matchSkills(query, names)
+    // embed-skill embeds the term, so an unlisted skill still gets its nearest groups (Azure -> cloud services).
+    const rows = await edgeFunction('embed-skill', { query: [best ?? query], groupMode: 'precise' }, ctx)
+    // Only the label reaches the model, with an instruction to keep the related-skills total.
+    const labels = (Array.isArray(rows) ? rows : []).map(row => (row as { label?: unknown })?.label).filter(Boolean)
+    return SKILL_LABEL_REPLY(labels.join('; '))
+  }
 }
 
 // Slug, type, title and when to use every pitch, no material (public.get_all_pitches).

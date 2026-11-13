@@ -19,6 +19,7 @@ export class DataAccessError extends Error {
 const isConnectionFailure = (status: number) => AUTH_FAILURE_STATUSES.includes(status) || status >= SERVER_ERROR_STATUS
 
 const rpcTarget = (fn: string) => `rest/v1/rpc/${fn}`
+const edgeTarget = (fn: string) => `functions/v1/${fn}`
 
 export type ChatToken = { token: string; expires_at: number } // expires_at: unix seconds
 
@@ -34,10 +35,10 @@ export async function getChatToken(onError: OnNetworkError): Promise<ChatToken> 
 }
 
 // A network failure is a DataAccessError; an abort (user stop or timeout) stays an abort.
-async function fetchRpc(fn: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
+async function fetchTarget(target: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
   const start = Date.now()
   try {
-    return await fetch(`${SUPABASE_URL}/${rpcTarget(fn)}`, {
+    return await fetch(`${SUPABASE_URL}/${target}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
       body: JSON.stringify(args),
@@ -45,20 +46,29 @@ async function fetchRpc(fn: string, args: Record<string, unknown>, token: string
     })
   } catch (error) {
     if (signal?.aborted) throw error
-    const failure = { target: rpcTarget(fn), elapsedMs: since(start), details: { args } }
+    const failure = { target, elapsedMs: since(start), details: { args } }
     throw logNetworkError(new DataAccessError((error as Error).message), { source: 'supabase', kind: 'network', ...failure }, onError)
   }
 }
 
-// Calls a Postgres function through PostgREST as whoever the token names (the chat role). Connection
-// failures throw DataAccessError; any other error response (e.g. bad args) is the function's and throws a plain Error.
-export async function callRpc(fn: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) throw logNetworkError(new DataAccessError(ENV_NOT_SET), { source: 'supabase', kind: 'config', target: rpcTarget(fn) }, onError)
+// POSTs to a Supabase target as whoever the token names (the chat role). Connection failures throw
+// DataAccessError; any other error response (e.g. bad args) is the function's and throws a plain Error.
+async function callTarget(target: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw logNetworkError(new DataAccessError(ENV_NOT_SET), { source: 'supabase', kind: 'config', target }, onError)
   const start = Date.now()
-  const res = await fetchRpc(fn, args, token, onError, signal)
+  const res = await fetchTarget(target, args, token, onError, signal)
   const body = await res.json().catch(() => null)
-  const failure = { kind: 'http', target: rpcTarget(fn), status: res.status, elapsedMs: since(start), details: { args, response: body } } as const
-  if (isConnectionFailure(res.status)) throw logNetworkError(new DataAccessError(body?.message ?? `${fn} ${res.status}`), { source: 'supabase', ...failure }, onError)
-  if (!res.ok) throw logNetworkError(new Error(body?.message ?? `${fn} ${res.status}`), { source: 'db_function', ...failure }, onError)
+  const message = body?.message ?? body?.error ?? `${target} ${res.status}`
+  const failure = { kind: 'http', target, status: res.status, elapsedMs: since(start), details: { args, response: body } } as const
+  if (isConnectionFailure(res.status)) throw logNetworkError(new DataAccessError(message), { source: 'supabase', ...failure }, onError)
+  if (!res.ok) throw logNetworkError(new Error(message), { source: 'db_function', ...failure }, onError)
   return body
 }
+
+// A Postgres function through PostgREST.
+export const callRpc = (fn: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) =>
+  callTarget(rpcTarget(fn), args, token, onError, signal)
+
+// A Supabase edge function (personal repo), e.g. embed-skill.
+export const callEdgeFunction = (fn: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) =>
+  callTarget(edgeTarget(fn), args, token, onError, signal)

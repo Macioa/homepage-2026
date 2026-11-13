@@ -3,6 +3,8 @@
   box-sizing: border-box;
   width: min(100%, 64rem);
   height: 100%;
+  position: relative;
+  z-index: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: var(--phosphor-dim) transparent;
@@ -25,7 +27,7 @@
   padding: clamp(0.75rem, 2.5vw, 1.25rem);
   border: 1px solid var(--phosphor-dim);
   border-radius: 10px;
-  background: rgba(0, 255, 51, 0.03);
+  background: rgba(34, 34, 34, 0.8);
   box-shadow: inset 0 0 24px rgba(0, 255, 51, 0.05);
   animation: cardIn 0.35s ease-out both;
 }
@@ -527,4 +529,34 @@
 
 .flagOff {
   color: #ff5555;
+}
+
+/* Close: pinned top-right while the list scrolls; same as toggling the footer projects button */
+.closeBar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.close {
+  margin: 0.5rem 0.5rem 0 0;
+  width: 2rem;
+  height: 2rem;
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--phosphor-green);
+  background: rgba(34, 34, 34, 0.8);
+  border: 1px solid var(--phosphor-green);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus-visible {
+  box-shadow: var(--phosphor-glow);
+  outline: none;
 }

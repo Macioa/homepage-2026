@@ -15,6 +15,24 @@
   box-shadow: var(--phosphor-glow);
 }
 
+/* Projects page: video fills the stage, dimmed, under the project list */
+.behind {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  justify-content: center;
+  opacity: 0.45;
+}
+
+.behind iframe {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  border: 0;
+  box-shadow: none;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

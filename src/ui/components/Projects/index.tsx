@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../state/hooks'
 import { loadProjects, projectFocused, showMoreProjects } from '../../../state/projects'
+import { toggleProjects } from '../../../state'
 import { ProjectCard } from './ProjectCard'
 import style from './projects.module.css'
 
@@ -42,6 +43,11 @@ export const Projects = () => {
 
   return (
     <section id='projects' className={style.projects} aria-label='Projects' aria-busy={status === 'loading'}>
+      <div className={style.closeBar}>
+        <button type='button' className={style.close} aria-label='Close projects' onClick={() => dispatch(toggleProjects())}>
+          ×
+        </button>
+      </div>
       <div className={style.list}>
         {items.slice(0, visibleCount).map(p => (
           <ProjectCard key={p.name} project={p} />

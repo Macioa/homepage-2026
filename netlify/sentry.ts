@@ -31,7 +31,8 @@ const capped = (what: string, promise: Promise<unknown>, ms: number) =>
 
 // OTEL_EXPORTER_OTLP_HEADERS: "Key=value,Key2=value2" (OTel's format).
 const parseHeaders = (raw = '') =>
-  Object.fromEntries(raw.split(',').filter(Boolean).map(pair => pair.split('=').map(decodeURIComponent).map(s => s.trim())))
+  // Split at the first "=" only: base64 credentials end in "=" padding.
+  Object.fromEntries(raw.split(',').filter(Boolean).map(pair => [pair.slice(0, pair.indexOf('=')), pair.slice(pair.indexOf('=') + 1)].map(decodeURIComponent).map(s => s.trim())))
 
 function setup() {
   const dsn = process.env.SENTRY_DSN

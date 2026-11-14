@@ -20,6 +20,8 @@ const handler = async (req: Request) => {
       apikey: key,
       Authorization: `Bearer ${key}`,
       'x-proxy-secret': process.env.JWT_PROXY_SECRET ?? '',
+      // The visitor's IP, so the edge function can skip telemetry for TELEMETRY_IGNORE_IPS.
+      'x-client-ip': req.headers.get('x-nf-client-connection-ip') ?? '',
       ...(req.headers.get('origin') ? { Origin: req.headers.get('origin')! } : {})
     },
     body: JSON.stringify({ role: 'chat' })

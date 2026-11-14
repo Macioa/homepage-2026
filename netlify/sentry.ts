@@ -91,11 +91,17 @@ async function traced(name: string, handler: Handler, req: Request) {
   })
 }
 
-// The handler with telemetry around it; if telemetry is off or its span can't start, the plain handler.
+// Callers whose requests send no telemetry (TELEMETRY_IGNORE_IPS, comma list), e.g. the owner testing the live site.
+const IGNORED_IPS = new Set((process.env.TELEMETRY_IGNORE_IPS ?? '').split(',').map(ip => ip.trim()).filter(Boolean))
+const ignored = (req: Request) => IGNORED_IPS.has(req.headers.get('x-nf-client-connection-ip') ?? '')
+
+// The handler with telemetry around it; if telemetry is off, the caller is ignored, or its span can't start, the
+// plain handler.
 export const withSentry = (name: string, handler: Handler): Handler =>
   !telemetry
     ? handler
     : req => {
+        if (ignored(req)) return handler(req)
         let ran = false
         const once: Handler = r => ((ran = true), handler(r))
         try {

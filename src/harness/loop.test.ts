@@ -18,7 +18,7 @@ let run: Run
 
 beforeEach(() => {
   model.mockReset()
-  const store = configureStore({ reducer: { harness: harnessReducer, history: historyReducer, auth: () => ({ token: null }) } })
+  const store = configureStore({ reducer: { harness: harnessReducer, history: historyReducer, auth: () => ({ token: 'test', expiresAt: Number.MAX_SAFE_INTEGER }) } })
   run = { store: store as unknown as HarnessStore, signal: new AbortController().signal }
 })
 

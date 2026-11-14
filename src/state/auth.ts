@@ -16,7 +16,22 @@ export type AuthState = {
 
 const initialState: AuthState = { token: null, expiresAt: null, status: 'idle', error: null }
 
-export const fetchChatToken = createAsyncThunk('auth/fetchChatToken', (_: void, { dispatch }) => getChatToken(onNetworkError(dispatch)))
+// After a failed request the next one waits RETRY_DELAY_MS; concurrent callers share the request in flight.
+const RETRY_DELAY_MS = 1_000
+let inFlight: ReturnType<typeof getChatToken> | null = null
+let failedAt = 0
+
+export const fetchChatToken = createAsyncThunk('auth/fetchChatToken', (_: void, { dispatch }) => {
+  const wait = failedAt + RETRY_DELAY_MS - Date.now()
+  inFlight ??= (wait > 0 ? new Promise(resolve => setTimeout(resolve, wait)) : Promise.resolve())
+    .then(() => getChatToken(onNetworkError(dispatch)))
+    .catch(error => {
+      failedAt = Date.now()
+      throw error
+    })
+    .finally(() => (inFlight = null))
+  return inFlight
+})
 
 const auth = createSlice({
   name: 'auth',

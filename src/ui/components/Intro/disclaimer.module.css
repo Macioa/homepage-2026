@@ -1,0 +1,207 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--phosphor-green);
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* ---------- CRT boot ---------- */
+
+.crt {
+  position: relative;
+  box-sizing: border-box;
+  width: min(100%, 32rem);
+  min-height: 18rem;
+  padding: 1.5rem;
+  font-family: var(--mono);
+  color: var(--phosphor-text);
+  text-align: center;
+  background: radial-gradient(ellipse at center, #031a08 0%, #000 75%);
+  border: 1px solid var(--phosphor-green);
+  border-radius: 1.2rem / 1.6rem;
+  box-shadow: var(--phosphor-glow), inset 0 0 2.5rem rgba(0, 255, 102, 0.12);
+  overflow: hidden;
+  animation: power-on 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* scanlines + slow roll bar */
+.crt::before,
+.crt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.crt::before {
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 3px);
+}
+
+.crt::after {
+  height: 25%;
+  background: linear-gradient(to bottom, transparent, rgba(0, 255, 102, 0.06), transparent);
+  animation: roll 6s linear infinite;
+}
+
+@keyframes power-on {
+  0% { transform: scale(0.02, 0.004); filter: brightness(4); }
+  35% { transform: scale(1, 0.004); filter: brightness(3); }
+  70% { transform: scale(1, 1); filter: brightness(1.6); }
+  100% { transform: scale(1, 1); filter: brightness(1); }
+}
+
+@keyframes roll {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(400%); }
+}
+
+.crt h2 {
+  margin: 0 0 1rem;
+  color: var(--phosphor-green);
+  text-shadow: var(--phosphor-glow);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: normal;
+  animation: flicker 0.15s 0.8s 3 alternate;
+}
+
+@keyframes flicker {
+  to { opacity: 0.3; }
+}
+
+.crt p {
+  text-shadow: 0 0 4px rgba(0, 255, 102, 0.5);
+}
+
+.crt button {
+  position: relative;
+  z-index: 1;
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  color: var(--phosphor-green);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  text-shadow: var(--phosphor-glow);
+  opacity: 0.35;
+  transition: opacity 0.3s;
+}
+
+.crt button.ready {
+  opacity: 1;
+  animation: blink 1.2s steps(1) infinite;
+}
+
+.crt button:hover,
+.crt button:focus-visible {
+  color: #000;
+  background: var(--phosphor-green);
+  text-shadow: none;
+  animation: none;
+  opacity: 1;
+  outline: none;
+}
+
+/* ---------- Terminal window ---------- */
+
+.term {
+  box-sizing: border-box;
+  width: min(100%, 34rem);
+  font-family: var(--mono);
+  color: var(--phosphor-text);
+  background: #000;
+  border: 2px solid var(--phosphor-green);
+  box-shadow: 8px 8px 0 var(--phosphor-dim), var(--phosphor-glow);
+  animation: pop 0.25s steps(4) both;
+}
+
+@keyframes pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.titleBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  color: #000;
+  background: var(--phosphor-green);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+}
+
+.winButtons {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.winButtons i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid #000;
+}
+
+.termBody {
+  padding: 1rem 1.25rem 1.25rem;
+  text-align: left;
+}
+
+.termBody p {
+  margin: 0 0 0.6rem;
+}
+
+.prompt {
+  color: var(--phosphor-green);
+}
+
+.term button {
+  padding: 0.1rem 0.4rem;
+  font: inherit;
+  color: var(--phosphor-green);
+  background: none;
+  border: 1px dashed var(--phosphor-dim);
+  cursor: pointer;
+}
+
+.term button:hover,
+.term button:focus-visible {
+  color: #000;
+  background: var(--phosphor-green);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crt, .crt::after, .crt h2, .crt button.ready, .term, .cursor {
+    animation: none;
+  }
+}

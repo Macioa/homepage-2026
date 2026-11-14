@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import style from './intro.module.css'
+import { Disclaimer } from './Disclaimer'
 import { useAppSelector } from '../../../state/hooks'
 
 const VIDEOS = ['https://youtu.be/StFlPZ602tQ', 'https://youtu.be/J9gKyRmic20']
@@ -22,7 +23,7 @@ export const Intro = () => {
   return (
     <>
       {showVideo && (
-        <section className={behind ? `${style.video} ${style.behind}` : style.video} aria-label='Video'>
+        <section className={behind ? `${style.video} ${style.behind}` : style.video} aria-label='Video' data-side-video={behind ? undefined : ''}>
           {accepted && (
             <iframe
               src={embedUrl(video)}
@@ -33,19 +34,7 @@ export const Intro = () => {
           )}
         </section>
       )}
-      {!accepted && (
-        <div className={style.backdrop}>
-          <div className={style.dialog} role='dialog' aria-modal='true' aria-labelledby='disclaimer-title'>
-            <h2 id='disclaimer-title'>Hello World</h2>
-            <p>I&apos;m not tracking your visit or your chat, but Google and Netlify are. This site doesn&apos;t keep cookies.</p>
-            <p>Ask about my experience or take a look at some of my projects.</p>
-            <p>Thanks for coming. I hope you enjoy.</p>
-            <button type='button' autoFocus onClick={() => setAccepted(true)}>
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+      {!accepted && <Disclaimer onAccept={() => setAccepted(true)} />}
     </>
   )
 }

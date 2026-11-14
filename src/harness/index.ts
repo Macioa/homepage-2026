@@ -20,7 +20,8 @@
 
 import { saveExchange, selectHistory } from '../state/history'
 import { freshContext } from './context'
-import { handleFailure } from './failure'
+import { reportUndelivered } from '../telemetry'
+import { failureOf, handleFailure } from './failure'
 import { toolLoop } from './loop'
 import { initPrompt } from './prompt'
 import { createRun, type HarnessStore } from './run'
@@ -33,8 +34,10 @@ export async function runHarness({ prompt, store, signal }: HarnessInput) {
     const reduced = await initPrompt(prompt, run)
     const response = await toolLoop(freshContext(reduced, selectHistory(store.getState())), run)
     if (response.trim()) store.dispatch(saveExchange({ prompt, response }))
+    else reportUndelivered(prompt, 'empty_reply')
     return response
   } catch (error) {
+    if (!signal.aborted) reportUndelivered(prompt, failureOf(error), error)
     return handleFailure(error, run)
   }
 }

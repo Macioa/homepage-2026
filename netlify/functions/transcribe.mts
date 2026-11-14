@@ -4,6 +4,7 @@
 // like the chat function's.
 
 import { logGeminiRequest, SUPABASE_ENV, TokenRefusedError } from '../supabase.ts'
+import { withSentry } from '../sentry.ts'
 
 const MODEL = 'gemini-3.1-flash-lite'
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
@@ -54,7 +55,7 @@ async function transcribe(audio: ArrayBuffer, mimeType: string, signal: AbortSig
   return parts.map(part => part.text ?? '').join('').trim()
 }
 
-export default async (req: Request) => {
+const handler = async (req: Request) => {
   const missing = ENV.filter(name => !process.env[name])
   if (missing.length) return errorResponse(`${missing.join(', ')} not set`, 'netlify', 500)
   const mimeType = baseMime(req.headers.get('content-type'))
@@ -75,3 +76,5 @@ export default async (req: Request) => {
 }
 
 export const config = { path: '/api/transcribe', method: 'POST' }
+
+export default withSentry('transcribe', handler)

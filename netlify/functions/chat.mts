@@ -9,6 +9,7 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { mapStoredMessagesToChatMessages, type AIMessageChunk, type StoredMessage } from '@langchain/core/messages'
 import { logGeminiRequest, SUPABASE_ENV, TokenRefusedError } from '../supabase.ts'
+import { setSpanAttributes, withSentry } from '../sentry.ts'
 
 const MODEL = 'gemini-3.1-flash-lite'
 // No retries: LangChain would wait out a 429, so the usage limit would stall the run instead of reaching the browser.
@@ -73,10 +74,18 @@ async function refusal(req: Request, signal: AbortSignal) {
 type Prepared = Awaited<ReturnType<typeof prepare>>
 
 async function invoke({ model, messages }: Prepared, signal: AbortSignal) {
-  return toReply(await model.invoke(messages, { signal }))
+  const message = await model.invoke(messages, { signal })
+  setSpanAttributes({
+    'gen_ai.system': 'gemini',
+    'gen_ai.request.model': MODEL,
+    'gen_ai.usage.input_tokens': message.usage_metadata?.input_tokens ?? 0,
+    'gen_ai.usage.output_tokens': message.usage_metadata?.output_tokens ?? 0,
+    'gen_ai.response.tool_calls': message.tool_calls?.length ?? 0,
+  })
+  return toReply(message)
 }
 
-export default async (req: Request) => {
+const handler = async (req: Request) => {
   const missing = ENV.filter(name => !process.env[name])
   if (missing.length) return errorResponse(`${missing.join(', ')} not set`, 'netlify', ERROR_STATUS)
   const signal = AbortSignal.any([req.signal, AbortSignal.timeout(GEMINI_TIMEOUT_MS)])
@@ -92,3 +101,5 @@ export default async (req: Request) => {
 }
 
 export const config = { path: '/api/chat', method: 'POST' }
+
+export default withSentry('chat', handler)

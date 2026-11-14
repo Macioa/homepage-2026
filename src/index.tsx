@@ -11,6 +11,9 @@ import { Projects } from './ui/components/Projects'
 import { Intro } from './ui/components/Intro'
 
 import styles from './ui/styles.module.css'
+import { initTelemetry } from './telemetry'
+
+initTelemetry()
 
 const Root = document.getElementById('root')
 if (Root)

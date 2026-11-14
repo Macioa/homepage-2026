@@ -10,7 +10,7 @@ const DATA_ACCESS_REPLY = 'Could not access data'
 
 type Failure = 'data_access' | 'usage_limit' | 'other'
 
-function failureOf(error: unknown): Failure {
+export function failureOf(error: unknown): Failure {
   if (error instanceof DataAccessError) return 'data_access'
   if (error instanceof UsageLimitError) return 'usage_limit'
   return 'other'

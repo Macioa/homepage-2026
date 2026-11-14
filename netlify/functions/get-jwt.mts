@@ -4,11 +4,12 @@
 // Only the chat role is handed out here.
 
 import { SUPABASE_ENV } from '../supabase.ts'
+import { withSentry } from '../sentry.ts'
 
 const ENV = ['JWT_PROXY_SECRET', ...SUPABASE_ENV]
 const ERROR_STATUS = 500
 
-export default async (req: Request) => {
+const handler = async (req: Request) => {
   const missing = ENV.filter(name => !process.env[name])
   if (missing.length) return Response.json({ error: `${missing.join(', ')} not set` }, { status: ERROR_STATUS })
   const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? ''
@@ -27,3 +28,5 @@ export default async (req: Request) => {
 }
 
 export const config = { path: '/api/get-jwt', method: 'POST' }
+
+export default withSentry('get-jwt', handler)

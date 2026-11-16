@@ -8,7 +8,11 @@ const VIDEOS = ['https://youtu.be/StFlPZ602tQ', 'https://youtu.be/J9gKyRmic20']
 // Wide enough for a 16:9 player beside the chat column; checked once on launch only.
 const WIDE_ASPECT = 1.6
 const MIN_WIDTH = 1100
-const fitsVideo = () => window.innerWidth >= MIN_WIDTH && window.innerWidth / window.innerHeight >= WIDE_ASPECT
+// Secret: localStorage.setItem('noVideo', '1') disables the video.
+const videoOff = () => {
+  try { return localStorage.getItem('noVideo') === '1' } catch { return false }
+}
+const fitsVideo = () => !videoOff() && window.innerWidth >= MIN_WIDTH && window.innerWidth / window.innerHeight >= WIDE_ASPECT
 
 const embedUrl = (short: string) => `https://www.youtube.com/embed/${short.split('/').pop()}?autoplay=1&playsinline=1`
 

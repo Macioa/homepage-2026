@@ -8,7 +8,7 @@
   NODE_VERSION = "24"
 
 # `netlify dev`: Vite plus the functions in netlify/functions, with the site env vars injected.
-# Run via `npm run netlify` (scripts/netlify-dev.mjs): ports come from DEV_PORT in .env.local.
+# Run via `npm run dev` (scripts/netlify-dev.mjs): ports come from DEV_PORT in .env.local.
 [dev]
-  command = "npm run dev"
+  command = "npm run vite"
   autoLaunch = false

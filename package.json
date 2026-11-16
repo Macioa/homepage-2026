@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "netlify": "node scripts/netlify-dev.mjs",
+    "dev": "node scripts/netlify-dev.mjs",
+    "vite": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",

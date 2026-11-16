@@ -1,0 +1,85 @@
+/* CSS-only popup: hover the trigger to peek, click (hidden checkbox) to pin open.
+   The menu's padding is an invisible "safe zone" so the cursor can travel to the
+   children without the popup closing. */
+.popup {
+  position: relative;
+  display: flex;
+}
+
+.toggle {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.trigger {
+  cursor: pointer;
+}
+
+.menu {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+  /* safe zone around the children; bottom padding bridges the gap to the trigger */
+  padding: 1.5rem 2rem 1rem;
+  background: none;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+}
+
+.trigger:hover ~ .menu,
+.menu:hover,
+.toggle:checked ~ .menu {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s;
+}
+
+.toggle:focus-visible ~ .trigger {
+  outline: 2px solid var(--phosphor-green);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    transition: none;
+  }
+}
+
+/* glow like the active Projects button while hovered or pinned open */
+.trigger:hover,
+.toggle:checked ~ .trigger {
+  filter: drop-shadow(0 0 4px var(--phosphor-green)) drop-shadow(0 0 10px rgba(0, 255, 51, 0.6));
+  animation: glowPulse 2.4s ease-in-out infinite;
+}
+
+.trigger:hover span,
+.toggle:checked ~ .trigger span {
+  color: var(--phosphor-green);
+  opacity: 1;
+}
+
+.trigger {
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+@keyframes glowPulse {
+  50% {
+    filter: drop-shadow(0 0 6px var(--phosphor-green)) drop-shadow(0 0 16px rgba(0, 255, 51, 0.8));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger:hover,
+  .toggle:checked ~ .trigger {
+    animation: none;
+  }
+}

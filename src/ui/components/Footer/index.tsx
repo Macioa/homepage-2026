@@ -8,39 +8,11 @@ import github from '../../images/github.svg'
 import twitter from '../../images/twitter.svg'
 import mail from '../../images/mail.svg'
 import projects from '../../images/projects.svg'
+import calendly from '../../images/calendly.svg'
+import socials from '../../images/socials.svg'
+import { Popup } from '../Popup'
 
-export const footerLinks = [
-  {
-    name: 'Linked In',
-    label: 'LinkedIn',
-    logo: linkedin,
-    url: 'https://linkedin.com/in/ryanwademontgomery'
-  },
-  // GA profiles is defunct. Link now redirects to hired.com
-  // {
-  //   name: 'General Assembly',
-  //   logo: ga,
-  //   url: 'https://profiles.generalassemb.ly/ryan-montgomery'
-  // },
-  {
-    name: 'Github',
-    label: 'GitHub',
-    logo: github,
-    url: 'https://github.com/Macioa'
-  },
-  {
-    name: 'Twitter',
-    label: 'Twitter',
-    logo: twitter,
-    url: 'https://twitter.com/macioa_macioa'
-  },
-  {
-    name: 'Mail',
-    label: 'Mail',
-    logo: mail,
-    url: 'mailto:development@ryanwademontgomery.com'
-  }
-]
+const toLinks = (links: { name: string, label: string, logo: string, url: string }[]) => links
   .filter(e => e.logo && e.url)
   .map((e, i) => (
     <a
@@ -54,6 +26,54 @@ export const footerLinks = [
       <span className={style.footerLabel}>{e.label}</span>
     </a>
   ))
+
+export const footerLinks = toLinks([
+  {
+    name: 'Github',
+    label: 'GitHub',
+    logo: github,
+    url: 'https://github.com/Macioa'
+  }
+])
+
+export const socialLinks = toLinks([
+  {
+    name: 'Linked In',
+    label: 'LinkedIn',
+    logo: linkedin,
+    url: 'https://linkedin.com/in/ryanwademontgomery'
+  },
+  {
+    name: 'Twitter',
+    label: 'Twitter',
+    logo: twitter,
+    url: 'https://twitter.com/macioa_macioa'
+  },
+  {
+    name: 'Mail',
+    label: 'Mail',
+    logo: mail,
+    url: 'mailto:development@ryanwademontgomery.com'
+  },
+  {
+    name: 'Calendly',
+    label: 'Calendly',
+    logo: calendly,
+    url: 'https://calendly.com/ryanwademontgomery'
+  }
+])
+
+const SocialsPopup = () => (
+  <Popup
+    id='LinkSocials'
+    triggerClassName={style.footerItem}
+    trigger={<>
+      <img src={socials} className={style.footerLink} alt='' />
+      <span className={style.footerLabel}>Socials</span>
+    </>}>
+    {socialLinks}
+  </Popup>
+)
 
 // Unlike the links, this swaps the stage between chat and projects; it glows while projects is open.
 const ProjectsButton = () => {
@@ -76,6 +96,7 @@ const ProjectsButton = () => {
 export const Footer = () => (
   <footer className={style.footer} id={style.footer}>
     <ProjectsButton />
+    <SocialsPopup />
     {footerLinks}
   </footer>
 )

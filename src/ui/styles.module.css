@@ -93,6 +93,11 @@
   justify-content: space-evenly;
 }
 
+.footer:has([data-popup]:hover, [data-popup] input:checked) {
+  /* lift the whole footer while a popup is open so it sits above everything */
+  z-index: 2147483647;
+}
+
 .footerLink {
   width: 50px;
   height: 50px;
@@ -165,8 +170,12 @@
   opacity: 1;
 }
 
-.footerButton[aria-pressed='true'] .footerLabel {
-  color: var(--phosphor-green);
+.footerButton[aria-pressed='true'] .footerLabel,
+.footer [data-popup]:hover > label .footerLabel,
+.footer [data-popup] > input:checked + label .footerLabel,
+.footer a:hover .footerLabel,
+.footerButton:hover .footerLabel {
+  color: rgb(var(--glow));
   opacity: 1;
 }
 
@@ -175,7 +184,6 @@
   border: 0;
   background: none;
   cursor: pointer;
-  line-height: 0;
   border-radius: 8px;
 }
 
@@ -195,19 +203,40 @@
   outline-offset: 4px;
 }
 
-.footerButton[aria-pressed='true'] {
-  filter: drop-shadow(0 0 4px var(--phosphor-green)) drop-shadow(0 0 10px rgba(0, 255, 51, 0.6));
+.footer {
+  /* glow color as an r, g, b triplet: green for toggles, pink for plain links */
+  --glow: 0, 255, 51;
+}
+
+.footer a {
+  --glow: 255, 45, 149;
+}
+
+.footerButton:not([aria-pressed='true']):hover {
+  --glow: 178, 77, 255;
+}
+
+.footerButton[aria-pressed='true'],
+.footer [data-popup]:hover > label,
+.footer [data-popup] > input:checked + label,
+.footer a:hover,
+.footerButton:hover {
+  filter: drop-shadow(0 0 4px rgb(var(--glow))) drop-shadow(0 0 10px rgba(var(--glow), 0.6));
   animation: glowPulse 2.4s ease-in-out infinite;
 }
 
 @keyframes glowPulse {
   50% {
-    filter: drop-shadow(0 0 6px var(--phosphor-green)) drop-shadow(0 0 16px rgba(0, 255, 51, 0.8));
+    filter: drop-shadow(0 0 6px rgb(var(--glow))) drop-shadow(0 0 16px rgba(var(--glow), 0.8));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .footerButton[aria-pressed='true'] {
+  .footerButton[aria-pressed='true'],
+  .footer [data-popup]:hover > label,
+  .footer [data-popup] > input:checked + label,
+  .footer a:hover,
+  .footerButton:hover {
     animation: none;
   }
   .footer a,

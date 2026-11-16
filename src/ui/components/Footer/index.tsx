@@ -8,6 +8,7 @@ import github from '../../images/github.svg'
 import twitter from '../../images/twitter.svg'
 import mail from '../../images/mail.svg'
 import projects from '../../images/projects.svg'
+import recommendations from '../../images/recommendations.svg'
 import calendly from '../../images/calendly.svg'
 import socials from '../../images/socials.svg'
 import { Popup } from '../Popup'
@@ -54,6 +55,12 @@ export const socialLinks = toLinks([
     label: 'Mail',
     logo: mail,
     url: 'mailto:development@ryanwademontgomery.com'
+  },
+  {
+    name: 'Recommendations',
+    label: 'Recs',
+    logo: recommendations,
+    url: 'https://linkedin.com/in/ryanwademontgomery/details/recommendations/'
   },
   {
     name: 'Calendly',

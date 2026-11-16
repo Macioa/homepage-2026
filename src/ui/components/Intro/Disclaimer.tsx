@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import style from './disclaimer.module.css'
+import { errorReportsEnabled, setErrorReports } from '../../../telemetry'
 
 const LINES = [
   "I'm not tracking your visit or your chat, but Google and Netlify are. This site doesn't keep cookies.",
@@ -38,6 +39,17 @@ type Props = { onAccept: () => void }
 
 const ScreenReaderText = () => <p className={style.srOnly}>{LINES.join(' ')}</p>
 
+// Checked by default; the choice is remembered for later visits.
+const ErrorReportsToggle = () => {
+  const [on, setOn] = useState(errorReportsEnabled)
+  return (
+    <label className={style.reports}>
+      <input type='checkbox' checked={on} onChange={e => { setOn(e.target.checked); setErrorReports(e.target.checked) }} />
+      Send error reports
+    </label>
+  )
+}
+
 // Monitor powering on: a line flashes, expands, then the text types itself out.
 const Crt = ({ onAccept }: Props) => {
   const count = useTyped(TOTAL, 900)
@@ -51,6 +63,7 @@ const Crt = ({ onAccept }: Props) => {
           <p key={i}>{l.shown}{l.typing && <span className={style.cursor} />}</p>
         ))}
       </div>
+      <ErrorReportsToggle />
       <button type='button' autoFocus onClick={onAccept} className={done ? style.ready : undefined}>
         [ Press Enter ]
       </button>
@@ -83,6 +96,7 @@ const Terminal = ({ onAccept }: Props) => {
             <p key={i}>{l.shown}{l.typing && <span className={style.cursor} />}</p>
           ))}
         </div>
+        <ErrorReportsToggle />
         {done && <p className={style.prompt} aria-hidden='true'>$ continue?</p>}
         <button type='button' autoFocus onClick={onAccept}>
           [Y/n]{done && <span className={style.cursor} />}

@@ -205,3 +205,12 @@
     animation: none;
   }
 }
+
+.reports {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.75em 0;
+  font-size: 0.85em;
+  cursor: pointer;
+}

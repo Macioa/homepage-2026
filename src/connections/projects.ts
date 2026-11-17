@@ -1,4 +1,4 @@
-// Projects from public.projects (personal repo) via get_projects(), read as the chat role.
+// Projects from public.projects (personal repo) via get_projects(): public, so read as anon with no JWT wait.
 import { callRpc } from './supabase'
 import type { OnNetworkError } from './networkError'
 
@@ -27,5 +27,5 @@ export type Project = {
   hand_written_code?: boolean
 }
 
-export const fetchProjects = (token: string, onError: OnNetworkError, signal?: AbortSignal): Promise<Project[]> =>
-  callRpc('get_projects', {}, token, onError, signal)
+export const fetchProjects = (onError: OnNetworkError, signal?: AbortSignal): Promise<Project[]> =>
+  callRpc('get_projects', {}, null, onError, signal)

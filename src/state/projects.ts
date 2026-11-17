@@ -1,8 +1,7 @@
-// Projects page: all rows fetched once on first open, rendered in batches as the list scrolls.
+// Projects page: all rows fetched once on first open, rendered as a window [start, end) that grows in batches
+// as the list scrolls. A ?project= link opens the window on that card alone, then it grows outward both ways.
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { fetchProjects, type Project } from '../connections/projects'
-import { TOKEN_NOT_READY } from '../prompts'
-import { freshToken, type AuthState } from './auth'
 import { onNetworkError } from './networkErrors'
 import { linkedProject, projectSlug } from './projectLink'
 
@@ -10,24 +9,21 @@ export const PROJECT_BATCH = 4
 
 export type ProjectsState = {
   items: Project[]
-  visibleCount: number
+  start: number
+  end: number
   status: 'idle' | 'loading' | 'ready' | 'error'
   error: string | null
   // Slug from a ?project= link: its card is rendered and centered once projects load.
   focus: string | null
 }
 
-const initialState: ProjectsState = { items: [], visibleCount: PROJECT_BATCH, status: 'idle', error: null, focus: linkedProject() }
+const initialState: ProjectsState = { items: [], start: 0, end: PROJECT_BATCH, status: 'idle', error: null, focus: linkedProject() }
 
-type ProjectsRoot = { auth: AuthState; projects: ProjectsState }
+type ProjectsRoot = { projects: ProjectsState }
 
 export const loadProjects = createAsyncThunk<Project[], void, { state: ProjectsRoot }>(
   'projects/load',
-  async (_, { getState, dispatch, signal }) => {
-    const token = await freshToken(getState, dispatch as never)
-    if (!token) throw new Error(TOKEN_NOT_READY)
-    return fetchProjects(token, onNetworkError(dispatch), signal)
-  },
+  async (_, { dispatch, signal }) => fetchProjects(onNetworkError(dispatch), signal),
   { condition: (_, { getState }) => ['idle', 'error'].includes(getState().projects.status) }
 )
 
@@ -36,7 +32,10 @@ const projects = createSlice({
   initialState,
   reducers: {
     showMoreProjects: state => {
-      state.visibleCount = Math.min(state.visibleCount + PROJECT_BATCH, state.items.length)
+      state.end = Math.min(state.end + PROJECT_BATCH, state.items.length)
+    },
+    showEarlierProjects: state => {
+      state.start = Math.max(state.start - PROJECT_BATCH, 0)
     },
     projectFocused: state => {
       state.focus = null
@@ -52,7 +51,8 @@ const projects = createSlice({
         state.status = 'ready'
         state.items = payload ?? []
         const target = state.focus ? state.items.findIndex(p => projectSlug(p.name) === state.focus) : -1
-        state.visibleCount = Math.min(Math.max(PROJECT_BATCH, target + 1), state.items.length)
+        state.start = Math.max(target, 0)
+        state.end = target >= 0 ? target + 1 : Math.min(PROJECT_BATCH, state.items.length)
       })
       .addCase(loadProjects.rejected, (state, { error }) => {
         state.status = 'error'
@@ -61,5 +61,5 @@ const projects = createSlice({
   }
 })
 
-export const { showMoreProjects, projectFocused } = projects.actions
+export const { showMoreProjects, showEarlierProjects, projectFocused } = projects.actions
 export const projectsReducer = projects.reducer

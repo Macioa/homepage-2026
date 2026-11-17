@@ -35,12 +35,13 @@ export async function getChatToken(onError: OnNetworkError): Promise<ChatToken> 
 }
 
 // A network failure is a DataAccessError; an abort (user stop or timeout) stays an abort.
-async function fetchTarget(target: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
+// No token: the call goes as anon (publishable key only), for public functions like get_projects.
+async function fetchTarget(target: string, args: Record<string, unknown>, token: string | null, onError: OnNetworkError, signal?: AbortSignal) {
   const start = Date.now()
   try {
     return await fetch(`${SUPABASE_URL}/${target}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify(args),
       signal
     })
@@ -53,7 +54,7 @@ async function fetchTarget(target: string, args: Record<string, unknown>, token:
 
 // POSTs to a Supabase target as whoever the token names (the chat role). Connection failures throw
 // DataAccessError; any other error response (e.g. bad args) is the function's and throws a plain Error.
-async function callTarget(target: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) {
+async function callTarget(target: string, args: Record<string, unknown>, token: string | null, onError: OnNetworkError, signal?: AbortSignal) {
   if (!SUPABASE_URL || !SUPABASE_KEY) throw logNetworkError(new DataAccessError(ENV_NOT_SET), { source: 'supabase', kind: 'config', target }, onError)
   const start = Date.now()
   const res = await fetchTarget(target, args, token, onError, signal)
@@ -66,7 +67,7 @@ async function callTarget(target: string, args: Record<string, unknown>, token: 
 }
 
 // A Postgres function through PostgREST.
-export const callRpc = (fn: string, args: Record<string, unknown>, token: string, onError: OnNetworkError, signal?: AbortSignal) =>
+export const callRpc = (fn: string, args: Record<string, unknown>, token: string | null, onError: OnNetworkError, signal?: AbortSignal) =>
   callTarget(rpcTarget(fn), args, token, onError, signal)
 
 // A Supabase edge function (personal repo), e.g. embed-skill.

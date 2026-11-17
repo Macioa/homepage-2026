@@ -7,6 +7,8 @@
   z-index: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* scroll is kept steady by hand when cards mount above (index.tsx); browser anchoring would double it */
+  overflow-anchor: none;
   scrollbar-color: var(--phosphor-dim) transparent;
   color: var(--phosphor-text);
   font-family: var(--mono);

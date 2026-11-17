@@ -3,7 +3,7 @@ import style from './disclaimer.module.css'
 import { errorReportsEnabled, setErrorReports } from '../../../telemetry'
 
 const LINES = [
-  "I'm not tracking your visit or your chat, but Google and Netlify are. This site doesn't keep cookies.",
+  '⚠ This site is not intended to be an enterprise RAG demo nor a slop demo. It is a hybrid site designed to relay carefully articulated information without hallucination or fabrication.',
   'Ask about my experience or take a look at some of my projects.',
   'Thanks for coming. I hope you enjoy.',
 ]

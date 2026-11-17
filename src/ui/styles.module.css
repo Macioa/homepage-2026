@@ -158,9 +158,10 @@
 }
 
 /* soft round dark backdrop so every footer button (and popup child) stays readable over anything */
+/* no isolation: every ::before joins the footer/popup-row stacking context,
+   so all backdrops paint beneath all icons and never cover a neighbor */
 .footerItem {
   position: relative;
-  isolation: isolate;
 }
 
 .footerItem::before {
@@ -203,18 +204,14 @@
   border-radius: 8px;
 }
 
-.footer a,
-.footerButton {
-  transition: transform 0.2s ease;
-}
-
-/* glow goes on the icon + label, not the item, so the ::before backdrop stays unglowed */
+/* glow and hover lift go on the icon + label, not the item: a filter or transform on
+   the item would make it a stacking context and trap its backdrop above neighbors */
 .footerItem > * {
-  transition: filter 0.2s ease;
+  transition: filter 0.2s ease, transform 0.2s ease;
 }
 
-.footer a:hover,
-.footerButton:hover {
+.footer a:hover > *,
+.footerButton:hover > * {
   transform: translateY(-2px);
 }
 
@@ -260,8 +257,6 @@
   .footerButton:hover > * {
     animation: none;
   }
-  .footer a,
-  .footerButton,
   .footerItem > * {
     transition: none;
   }

@@ -25,6 +25,7 @@ import { failureOf, handleFailure } from './failure'
 import { toolLoop } from './loop'
 import { initPrompt } from './prompt'
 import { createRun, type HarnessStore } from './run'
+import { sendToJudy } from '../judy'
 
 type HarnessInput = { prompt: string; store: HarnessStore; signal: AbortSignal }
 
@@ -33,6 +34,8 @@ export async function runHarness({ prompt, store, signal }: HarnessInput) {
   try {
     const reduced = await initPrompt(prompt, run)
     const response = await toolLoop(freshContext(reduced, selectHistory(store.getState())), run)
+    const { history, harness } = store.getState()
+    sendToJudy({ prompt, history, toolResults: harness.toolCalls, answer: response })
     if (response.trim()) store.dispatch(saveExchange({ prompt, response }))
     else reportUndelivered(prompt, 'empty_reply')
     return response

@@ -157,6 +157,22 @@
   font-family: var(--mono);
 }
 
+/* soft round dark backdrop so every footer button (and popup child) stays readable over anything */
+.footerItem {
+  position: relative;
+  isolation: isolate;
+}
+
+.footerItem::before {
+  content: '';
+  position: absolute;
+  inset: -36px -44px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.8) 45%, rgba(0, 0, 0, 0.45) 75%, transparent);
+  pointer-events: none;
+}
+
 .footerLabel {
   font-size: clamp(0.6rem, 2.4vw, 0.8rem);
   letter-spacing: 1px;
@@ -189,7 +205,12 @@
 
 .footer a,
 .footerButton {
-  transition: filter 0.2s ease, transform 0.2s ease;
+  transition: transform 0.2s ease;
+}
+
+/* glow goes on the icon + label, not the item, so the ::before backdrop stays unglowed */
+.footerItem > * {
+  transition: filter 0.2s ease;
 }
 
 .footer a:hover,
@@ -216,11 +237,11 @@
   --glow: 178, 77, 255;
 }
 
-.footerButton[aria-pressed='true'],
-.footer [data-popup]:hover > label,
-.footer [data-popup] > input:checked + label,
-.footer a:hover,
-.footerButton:hover {
+.footerButton[aria-pressed='true'] > *,
+.footer [data-popup]:hover > label > *,
+.footer [data-popup] > input:checked + label > *,
+.footer a:hover > *,
+.footerButton:hover > * {
   filter: drop-shadow(0 0 4px rgb(var(--glow))) drop-shadow(0 0 10px rgba(var(--glow), 0.6));
   animation: glowPulse 2.4s ease-in-out infinite;
 }
@@ -232,15 +253,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .footerButton[aria-pressed='true'],
-  .footer [data-popup]:hover > label,
-  .footer [data-popup] > input:checked + label,
-  .footer a:hover,
-  .footerButton:hover {
+  .footerButton[aria-pressed='true'] > *,
+  .footer [data-popup]:hover > label > *,
+  .footer [data-popup] > input:checked + label > *,
+  .footer a:hover > *,
+  .footerButton:hover > * {
     animation: none;
   }
   .footer a,
-  .footerButton {
+  .footerButton,
+  .footerItem > * {
     transition: none;
   }
 }

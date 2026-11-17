@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import Markdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Project } from '../../../connections/projects'
 import { projectSlug } from '../../../state/projectLink'
 import { ImageGallery } from './ImageGallery'
@@ -45,23 +46,21 @@ const hostOf = (url: string) => {
   }
 }
 
-// Renders [text](https://url) markdown links inside plain text; everything else stays text.
-const LINK = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
-const RichText = ({ text }: { text: string }) => {
-  const parts: ReactNode[] = []
-  let last = 0
-  for (const m of text.matchAll(LINK)) {
-    parts.push(text.slice(last, m.index))
-    parts.push(
-      <a key={m.index} className={style.inlineLink} href={m[2]} target='_blank' rel='noopener noreferrer'>
-        {m[1]}
-      </a>
-    )
-    last = m.index + m[0].length
-  }
-  parts.push(text.slice(last))
-  return <>{parts}</>
+// Renders project text as GitHub-flavored markdown. Links open in a new tab; paragraphs are unwrapped so the
+// text sits inline in its <p> or <li>, and raw HTML is not rendered.
+const MD_COMPONENTS: Components = {
+  a: ({ href, children }) => (
+    <a className={style.inlineLink} href={href} target='_blank' rel='noopener noreferrer'>
+      {children}
+    </a>
+  ),
+  p: ({ children }) => <>{children}</>
 }
+const RichText = ({ text }: { text: string }) => (
+  <Markdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+    {text}
+  </Markdown>
+)
 
 const LinkChips = ({ label, urls }: { label: string; urls?: string[] }) =>
   filled(urls).map(u => (
@@ -88,9 +87,9 @@ export const ProjectCard = ({ project }: { project: Project }) => {
             <LinkChips label='Source' urls={project.source_url} />
           </div>
         </header>
-        {project.desc && <p className={style.overview}>
+        {project.desc && <div className={style.overview}>
             <RichText text={project.desc} />
-          </p>}
+          </div>}
         {panels.length > 0 && (
           <div className={style.panels}>
             {panels.map(({ key, label, tags, values }) => (

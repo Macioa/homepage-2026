@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import style from './intro.module.css'
 import { Disclaimer } from './Disclaimer'
+import { TvFrame } from './TvFrame'
 import { useAppSelector } from '../../../state/hooks'
 
 const VIDEOS = ['https://youtu.be/StFlPZ602tQ', 'https://youtu.be/J9gKyRmic20']
@@ -29,12 +30,14 @@ export const Intro = () => {
       {showVideo && (
         <section className={behind ? `${style.video} ${style.behind}` : style.video} aria-label='Video' data-side-video={behind ? undefined : ''}>
           {accepted && (
-            <iframe
-              src={embedUrl(video)}
-              title='YouTube video'
-              allow='autoplay; encrypted-media; picture-in-picture; fullscreen'
-              allowFullScreen
-            />
+            <TvFrame>
+              <iframe
+                src={embedUrl(video)}
+                title='YouTube video'
+                allow='autoplay; encrypted-media; picture-in-picture; fullscreen'
+                allowFullScreen
+              />
+            </TvFrame>
           )}
         </section>
       )}

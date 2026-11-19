@@ -106,11 +106,19 @@ const Terminal = ({ onAccept }: Props) => {
   )
 }
 
-const VARIANTS = [Crt, Terminal]
+const VARIANTS: Record<string, typeof Crt> = { crt: Crt, terminal: Terminal }
+
+// ?disclaimer=crt|terminal forces one look; otherwise random.
+const pickVariant = () => {
+  const forced = new URLSearchParams(location.search).get('disclaimer')
+  if (forced && VARIANTS[forced]) return VARIANTS[forced]
+  const list = Object.values(VARIANTS)
+  return list[Math.floor(Math.random() * list.length)]
+}
 
 // Launch disclaimer; picks one of the two looks at random per page load.
 export const Disclaimer = ({ onAccept }: Props) => {
-  const [Variant] = useState(() => VARIANTS[Math.floor(Math.random() * VARIANTS.length)])
+  const [Variant] = useState(pickVariant)
   return (
     <div className={style.backdrop}>
       <Variant onAccept={onAccept} />

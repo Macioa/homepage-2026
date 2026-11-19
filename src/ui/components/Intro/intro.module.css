@@ -4,15 +4,39 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   margin-left: 1rem;
+  container-type: size;
 }
 
-.video iframe {
+.video .tv {
+  position: relative;
+  /* largest box of the set's own aspect (--tv-aspect, set per model) that fits the pane */
+  width: min(100cqw, 100cqh * var(--tv-aspect));
+  aspect-ratio: var(--tv-aspect);
+}
+
+/* Window cut to the set's screen; position/size/radius set per model in TvFrame */
+.tvScreen {
+  position: absolute;
+  overflow: hidden;
+  background: #000;
+}
+
+/* Player covers the screen at 16:9, centred; overflow is clipped by .tvScreen */
+.tvScreen iframe {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: 100%;
-  border: 1px solid var(--phosphor-dim);
-  box-shadow: var(--phosphor-glow);
+  height: 100%;
+  border: 0;
+}
+
+/* TV set drawn on top; clicks pass through to the player */
+.tvSet {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 /* Projects page: video fills the stage, dimmed, under the project list */
@@ -23,12 +47,4 @@
   margin: 0;
   justify-content: center;
   opacity: 0.45;
-}
-
-.behind iframe {
-  width: auto;
-  height: 100%;
-  max-width: 100%;
-  border: 0;
-  box-shadow: none;
 }

@@ -3,16 +3,15 @@ import style from './intro.module.css'
 import { Disclaimer } from './Disclaimer'
 import { TvFrame } from './TvFrame'
 import { useAppSelector } from '../../../state/hooks'
+import { persistedFlag } from '../../../state/urlFlags'
 
 const VIDEOS = ['https://youtu.be/StFlPZ602tQ', 'https://youtu.be/J9gKyRmic20']
 
 // Wide enough for a 16:9 player beside the chat column; checked once on launch only.
 const WIDE_ASPECT = 1.6
 const MIN_WIDTH = 1100
-// Secret: localStorage.setItem('noVideo', '1') disables the video.
-const videoOff = () => {
-  try { return localStorage.getItem('noVideo') === '1' } catch { return false }
-}
+// Secret: localStorage.setItem('noVideo', '1') disables the video; ?music=false|true sets it.
+const videoOff = () => !persistedFlag('music', 'noVideo', '0', '1', true)
 const fitsVideo = () => !videoOff() && window.innerWidth >= MIN_WIDTH && window.innerWidth / window.innerHeight >= WIDE_ASPECT
 
 const embedUrl = (short: string) => `https://www.youtube.com/embed/${short.split('/').pop()}?autoplay=1&playsinline=1`

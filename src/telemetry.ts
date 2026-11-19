@@ -2,6 +2,7 @@
 // Soft fail: a failed init or report is logged and skipped, never thrown into the app.
 
 import * as Sentry from '@sentry/react'
+import { persistedFlag } from './state/urlFlags'
 
 const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined
 
@@ -25,13 +26,8 @@ function ownerOptedOut() {
   return document.cookie.split('; ').includes(`${OPT_OUT_COOKIE}=1`)
 }
 
-export function errorReportsEnabled() {
-  try {
-    return localStorage.getItem(PREF_KEY) !== 'off'
-  } catch {
-    return true
-  }
-}
+// ?error_reports=true|false sets the same remembered choice.
+export const errorReportsEnabled = () => persistedFlag('error_reports', PREF_KEY, 'on', 'off', true)
 
 // Saves the visitor's choice; turning it off stops Sentry for this page load too.
 export function setErrorReports(on: boolean) {

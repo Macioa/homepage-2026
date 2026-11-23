@@ -1,16 +1,19 @@
-// A harness run: the store and one abort signal for the user's stop. Its model calls all go through
+// A harness run: the store, one abort signal for the user's stop, and events for the UI.
+// Its model calls all go through
 // callLoggedModel, so each one (retries included) rereads the Gemini rate window (state/usage.ts) and waits
 // out a full one; the chat function logs the call in it.
 
-import { callModel, ModelTimeoutError, ModelUnavailableError, type ModelRequest } from '../connections/gemini'
+import { callModel, ModelTimeoutError, ModelUnavailableError, type ModelProvider, type ModelRequest } from '../connections/gemini'
 import { DataAccessError } from '../connections/supabase'
 import { TOKEN_NOT_READY } from '../prompts'
 import type { AppDispatch, RootState } from '../state'
 import { onNetworkError } from '../state/networkErrors'
 import { fetchGeminiUsage, selectActiveCalls, selectSendLocked, USAGE_LIMIT } from '../state/usage'
 
-// Retries of a model call that timed out in Netlify or Gemini, or found Gemini overloaded.
-const LLM_RETRIES = 3
+// Retries of a Gemini call that timed out or found Gemini overloaded: three requests in all, then the fallback.
+const LLM_RETRIES = 2
+// Serves the rest of the run once Gemini has failed three times. Gets one request per model call.
+const FALLBACK_PROVIDER: ModelProvider = 'openrouter'
 // An overloaded Gemini (503) is retried after this wait.
 const UNAVAILABLE_WAIT_MS = 30_000
 // Once the rate window is full, a model call waits until at least this many slots are free.
@@ -18,9 +21,12 @@ const FREE_SLOTS = 2
 
 export type HarnessStore = { dispatch: AppDispatch; getState: () => RootState }
 
-export type Run = { store: HarnessStore; signal: AbortSignal }
+// What the UI hears about a run: a cooldown wait starting or ending, and the move to the fallback LLM.
+export type RunEvents = { onCooldown: (cooling: boolean) => void; onFallback: () => void }
 
-export const createRun = (store: HarnessStore, signal: AbortSignal): Run => ({ store, signal })
+export type Run = { store: HarnessStore; signal: AbortSignal; events?: RunEvents; provider?: ModelProvider }
+
+export const createRun = (store: HarnessStore, signal: AbortSignal, events?: RunEvents): Run => ({ store, signal, events })
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -45,7 +51,10 @@ function slotsFreeAt({ store }: Run) {
 
 // Rechecks after each wait: other visitors' calls may have filled the window meanwhile.
 async function waitForSlots(run: Run) {
-  for (let at = slotsFreeAt(run); at; at = slotsFreeAt(run)) await sleep(at - Date.now(), run.signal)
+  for (let at = slotsFreeAt(run); at; at = slotsFreeAt(run)) {
+    run.events?.onCooldown(true)
+    await sleep(at - Date.now(), run.signal)
+  }
 }
 
 // The chat JWT the window read and the model call are made with.
@@ -66,23 +75,40 @@ async function readWindow({ store }: Run) {
 
 const retryable = (error: unknown) => error instanceof ModelTimeoutError || error instanceof ModelUnavailableError
 
-// A timed-out or overloaded call is retried while retries are left, the run is live and the rate window isn't locked.
-const canRetry = (error: unknown, { store, signal }: Run, retriesLeft: number) =>
-  retryable(error) && retriesLeft > 0 && !signal.aborted && !selectSendLocked(store.getState(), Date.now())
+// A timed-out or overloaded call can go again while the run is live and the rate window isn't locked.
+const canCallAgain = (error: unknown, { store, signal }: Run) =>
+  retryable(error) && !signal.aborted && !selectSendLocked(store.getState(), Date.now())
+
+const withProvider = (request: ModelRequest, { provider }: Run) => (provider ? { ...request, provider } : request)
 
 // Rereads the window and waits for free slots, then makes the call. An overloaded Gemini is given
-// UNAVAILABLE_WAIT_MS before the retry.
+// UNAVAILABLE_WAIT_MS before the retry. With no retries left, the run moves to the fallback provider.
 async function callWithRetries(request: ModelRequest, run: Run, retriesLeft: number): ReturnType<typeof callModel> {
   const token = chatToken(run)
-  await readWindow(run)
-  await waitForSlots(run)
+  // The fallback provider is outside the rate window.
+  if (!run.provider) {
+    await readWindow(run)
+    await waitForSlots(run)
+  }
   try {
-    return await callModel(request, token, run.signal, onNetworkError(run.store.dispatch))
+    const reply = await callModel(withProvider(request, run), token, run.signal, onNetworkError(run.store.dispatch))
+    run.events?.onCooldown(false)
+    return reply
   } catch (error) {
-    if (!canRetry(error, run, retriesLeft)) throw error
-    if (error instanceof ModelUnavailableError) await sleep(UNAVAILABLE_WAIT_MS, run.signal)
+    if (!canCallAgain(error, run)) throw error
+    if (retriesLeft === 0) {
+      if (run.provider) throw error
+      run.provider = FALLBACK_PROVIDER
+      run.events?.onCooldown(false)
+      run.events?.onFallback()
+      return callWithRetries(request, run, 0)
+    }
+    if (error instanceof ModelUnavailableError) {
+      run.events?.onCooldown(true)
+      await sleep(UNAVAILABLE_WAIT_MS, run.signal)
+    }
     return callWithRetries(request, run, retriesLeft - 1)
   }
 }
 
-export const callLoggedModel = (request: ModelRequest, run: Run) => callWithRetries(request, run, LLM_RETRIES)
+export const callLoggedModel = (request: ModelRequest, run: Run) => callWithRetries(request, run, run.provider ? 0 : LLM_RETRIES)

@@ -7,12 +7,22 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import chat from './functions/chat.mts'
 
-const { invoke, bindTools } = vi.hoisted(() => ({ invoke: vi.fn(), bindTools: vi.fn() }))
+const { invoke, bindTools, routerFields } = vi.hoisted(() => ({ invoke: vi.fn(), bindTools: vi.fn(), routerFields: vi.fn() }))
 
 vi.mock('@langchain/google-genai', () => ({
   ChatGoogleGenerativeAI: class {
     invoke = invoke
     bindTools = bindTools
+  }
+}))
+
+vi.mock('@langchain/openrouter', () => ({
+  ChatOpenRouter: class {
+    invoke = invoke
+    bindTools = bindTools
+    constructor(fields: unknown) {
+      routerFields(fields)
+    }
   }
 }))
 
@@ -30,6 +40,8 @@ const answer = async (res: Response) => ({ status: res.status, body: await res.j
 
 beforeEach(() => {
   vi.stubEnv('GEMINI_API_KEY', 'key')
+  vi.stubEnv('OPENROUTER_API_KEY', 'router-key')
+  routerFields.mockReset()
   vi.stubEnv('VITE_SUPABASE_URL', 'https://db.test')
   vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'publishable')
   vi.stubGlobal('fetch', supabase.mockReset().mockImplementation(async () => windowOf(1)))
@@ -49,6 +61,44 @@ test('a reply from Gemini', async () => {
     status: 200,
     body: { message: { type: 'ai', data: { content: 'ok' } }, text: 'ok', toolCalls: [] }
   })
+})
+
+test('provider openrouter uses the free wildcard model', async () => {
+  invoke.mockResolvedValue(reply)
+  expect((await send({ messages: [human], provider: 'openrouter' })).status).toBe(200)
+  expect(routerFields).toHaveBeenCalledWith(expect.objectContaining({ model: 'openrouter/free', apiKey: 'router-key', maxRetries: 0 }))
+})
+
+test("OpenRouter's overloaded 503 passes through, tagged openrouter", async () => {
+  invoke.mockRejectedValue(Object.assign(new Error('busy'), { statusCode: 503 }))
+  expect(await answer(await send({ messages: [human], provider: 'openrouter' }))).toEqual({ status: 503, body: { error: 'busy', source: 'openrouter', timeout: false } })
+})
+
+test('no OpenRouter key is netlify, and only the fallback needs it', async () => {
+  vi.stubEnv('OPENROUTER_API_KEY', '')
+  invoke.mockResolvedValue(reply)
+  expect((await send({ messages: [human] })).status).toBe(200)
+  expect(await answer(await send({ messages: [human], provider: 'openrouter' }))).toEqual({ status: 500, body: { error: 'OPENROUTER_API_KEY not set', source: 'netlify', timeout: false } })
+})
+
+test('an unknown provider is refused before the window', async () => {
+  expect(await answer(await send({ messages: [human], provider: 'constructor' }))).toMatchObject({ status: 500, body: { source: 'netlify' } })
+  expect(supabase).not.toHaveBeenCalled()
+})
+
+test('an OpenRouter call checks the token but logs nothing, even with a full window', async () => {
+  invoke.mockResolvedValue(reply)
+  supabase.mockResolvedValue(windowOf(50))
+  expect((await send({ messages: [human], provider: 'openrouter' })).status).toBe(200)
+  expect(supabase).toHaveBeenCalledTimes(1)
+  expect(supabase.mock.calls[0][0]).toBe('https://db.test/rest/v1/rpc/get_gemini_usage')
+  expect(supabase.mock.calls[0][1].headers).toMatchObject({ Authorization: BEARER })
+})
+
+test('a token PostgREST refuses is a 401 for OpenRouter too', async () => {
+  supabase.mockResolvedValue(Response.json({ message: 'bad jwt' }, { status: 401 }))
+  expect((await send({ messages: [human], provider: 'openrouter' })).status).toBe(401)
+  expect(invoke).not.toHaveBeenCalled()
 })
 
 test('tools are bound with the tool choice', async () => {

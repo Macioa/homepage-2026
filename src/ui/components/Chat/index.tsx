@@ -1,6 +1,7 @@
 import style from '../../styles.module.css'
 import ChatScreen from '../../chat/Chat.jsx'
 import { runHarness } from '../../../harness'
+import type { RunEvents } from '../../../harness/run'
 import { store } from '../../../state'
 import { freshToken } from '../../../state/auth'
 import { fetchGeminiUsage } from '../../../state/usage'
@@ -8,7 +9,7 @@ import { onNetworkError } from '../../../state/networkErrors'
 import { transcribeAudio } from '../../../connections/transcribe'
 import { useAppSelector, useGeminiUsage } from '../../../state/hooks'
 
-const send = (prompt: string, signal: AbortSignal) => runHarness({ prompt, store, signal })
+const send = (prompt: string, signal: AbortSignal, events: RunEvents) => runHarness({ prompt, store, signal, events })
 
 // A recorded voice prompt to text; the call counts in the Gemini rate window, so the bar is reread after it.
 async function transcribe(audio: Blob, signal: AbortSignal) {

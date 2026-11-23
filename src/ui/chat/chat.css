@@ -729,6 +729,56 @@
   box-shadow: inset 0 1px 2px #5d5747, 0 0 8px var(--llm-green), 0 0 16px var(--llm-green);
 }
 
+/* Fallback LLM warning: a terminal alert in amber, floating over the top of the reply screen. */
+.llm .fallback-warning {
+  --llm-amber: #ffb000;
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  box-sizing: border-box;
+  width: min(460px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  color: var(--llm-amber);
+  background: rgba(0, 0, 0, 0.92);
+  border: 1px solid var(--llm-amber);
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(255, 176, 0, 0.45);
+}
+
+.llm .fallback-icon {
+  flex: none;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+.llm .fallback-warning p {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  text-shadow: 0 0 4px rgba(255, 176, 0, 0.45);
+}
+
+.llm .fallback-warning button {
+  flex: none;
+  min-height: 32px;
+  padding: 4px 12px;
+  color: var(--llm-amber);
+  text-shadow: 0 0 6px rgba(255, 176, 0, 0.6);
+  border-color: var(--llm-amber);
+}
+
+.llm .fallback-warning button:hover:not(:disabled),
+.llm .fallback-warning button:focus-visible {
+  border-color: var(--llm-amber);
+  box-shadow: 0 0 8px rgba(255, 176, 0, 0.6);
+}
+
 /* Input / output panels with an expand toggle; expanded fills the viewport above everything (footer is z 60). */
 .llm .panel {
   position: relative;

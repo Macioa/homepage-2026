@@ -1,4 +1,5 @@
-// One model call through the chat Netlify function (netlify/functions/chat.mts). Messages travel in
+// One model call through the chat Netlify function (netlify/functions/chat.mts), which picks the provider's
+// adapter (netlify/llm.ts) from request.provider. Messages travel in
 // LangChain's stored format, so the model's own messages (and their thought signatures) round-trip intact.
 // Every failure is recorded with its source (networkError.ts): the function tags its own errors, so an
 // untagged error response came from Netlify itself.
@@ -7,7 +8,7 @@ import { logNetworkError, since, type NetworkErrorKind, type OnNetworkError } fr
 
 const ENDPOINT = '/api/chat'
 const HEADERS = { 'Content-Type': 'application/json' }
-// The chat function passes Gemini's 429 through when the usage limit is reached.
+// The chat function passes a provider's 429 through; only the rate-limited one's locks Send.
 const USAGE_LIMIT_STATUS = 429
 // The chat function passes Gemini's 503 through when the model is overloaded ("high demand").
 const UNAVAILABLE_STATUS = 503
@@ -43,12 +44,14 @@ export type ToolCall = { id: string; name: string; args: Record<string, unknown>
 
 export type ToolChoice = 'any' | 'auto' | 'none'
 
-export type ModelRequest = { messages: StoredMessage[]; tools?: ToolSpec[]; toolChoice?: ToolChoice }
+export type ModelProvider = 'gemini' | 'openrouter'
+
+export type ModelRequest = { messages: StoredMessage[]; tools?: ToolSpec[]; toolChoice?: ToolChoice; provider?: ModelProvider }
 
 export type ModelReply = { message: StoredMessage; text: string; toolCalls: ToolCall[] }
 
-// An error the chat function answered itself: source 'gemini' for the model call, 'netlify' for its own setup.
-type TaggedError = { error?: string; source?: 'gemini' | 'netlify'; timeout?: boolean }
+// An error the chat function answered itself: the provider's name for the model call, 'netlify' for its own setup.
+type TaggedError = { error?: string; source?: ModelProvider | 'netlify'; timeout?: boolean }
 
 const parseJson = (text: string) => {
   try {
@@ -65,8 +68,8 @@ function failedKind(status: number, body: TaggedError, text: string, elapsedMs: 
   return timeout ? 'timeout' : 'http'
 }
 
-function failedError(status: number, kind: NetworkErrorKind, message: string) {
-  if (status === USAGE_LIMIT_STATUS) return new UsageLimitError(message)
+function failedError(status: number, kind: NetworkErrorKind, message: string, source: TaggedError['source']) {
+  if (status === USAGE_LIMIT_STATUS && source !== 'openrouter') return new UsageLimitError(message)
   if (status === UNAVAILABLE_STATUS) return new ModelUnavailableError(message)
   return kind === 'timeout' ? new ModelTimeoutError(message) : new Error(message)
 }
@@ -75,7 +78,7 @@ function failedResponse(res: Response, body: TaggedError, text: string, details:
   const kind = failedKind(res.status, body, text, elapsedMs)
   // Netlify's own error body stays in details.response; the chat shows only its status.
   const message = body.error ?? `chat ${res.status}`
-  return { error: failedError(res.status, kind, message), kind, source: body.source ?? 'netlify', details: { ...details, response: text.slice(0, MAX_RESPONSE_DETAIL) } }
+  return { error: failedError(res.status, kind, message, body.source), kind, source: body.source ?? 'netlify', details: { ...details, response: text.slice(0, MAX_RESPONSE_DETAIL) } }
 }
 
 // `token` is the chat JWT: the chat function logs the call in the rate window with it (connections/supabase.ts).

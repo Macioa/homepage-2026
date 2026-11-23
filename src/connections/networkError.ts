@@ -4,7 +4,7 @@
 // netlify: the chat function or the platform around it failed (unreachable, crashed, killed at its time limit).
 // gemini: the Gemini call inside the chat function failed. supabase: PostgREST or the token edge function could
 // not be reached, or refused or failed the call. db_function: a Postgres function answered with an error.
-export type NetworkErrorSource = 'netlify' | 'gemini' | 'supabase' | 'db_function'
+export type NetworkErrorSource = 'netlify' | 'gemini' | 'openrouter' | 'supabase' | 'db_function'
 
 // timeout: a time limit ran out. network: no response. http: an error response. config: env vars missing.
 export type NetworkErrorKind = 'timeout' | 'network' | 'http' | 'config'

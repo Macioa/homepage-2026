@@ -33,3 +33,9 @@ export async function logGeminiRequest(authorization: string, signal: AbortSigna
   const { used } = await callRpc<{ used: unknown[] }>('log_gemini_request', authorization, signal)
   return used.length
 }
+
+// Checks the caller's JWT with a read of the window, logging nothing, for a provider outside it. Resolves to 0 calls.
+export async function verifyChatToken(authorization: string, signal: AbortSignal) {
+  await callRpc('get_gemini_usage', authorization, signal)
+  return 0
+}

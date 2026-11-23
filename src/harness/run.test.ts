@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-// callLoggedModel: a timed-out model call is retried up to 3 times, each retry rereading the rate window first;
+// callLoggedModel: a timed-out model call is retried up to 2 times, each retry rereading the rate window first;
 // no retry once the window is locked, and none for other errors. An overloaded Gemini (503) is retried the
-// same way after a 30 second wait. Once the window is full a call waits until 2 slots are free. createRun
+// same way after a 30 second wait. After 3 failed Gemini requests the run moves to OpenRouter. The cooldown
+// notice is on during a wait and off once a request succeeds. Once the window is full a call waits until 2 slots are free. createRun
 // adds no timeout to the run's signal.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -45,10 +46,56 @@ test('retries a timeout and rereads the window for every attempt', async () => {
   expect(dispatch).toHaveBeenCalledTimes(3)
 })
 
-test('gives up after 3 retries', async () => {
+const providers = () => model.mock.calls.map(([sent]) => sent.provider)
+
+test('three failed Gemini requests fall back to OpenRouter', async () => {
+  model.mockRejectedValueOnce(new ModelTimeoutError('t')).mockRejectedValueOnce(new ModelTimeoutError('t')).mockRejectedValueOnce(new ModelTimeoutError('t')).mockResolvedValueOnce(reply)
+  await expect(callLoggedModel(request, run())).resolves.toBe(reply)
+  expect(providers()).toEqual([undefined, undefined, undefined, 'openrouter'])
+})
+
+test('the rest of the run stays on OpenRouter', async () => {
+  model.mockRejectedValueOnce(new ModelTimeoutError('t')).mockRejectedValueOnce(new ModelTimeoutError('t')).mockRejectedValueOnce(new ModelTimeoutError('t')).mockResolvedValue(reply)
+  const sameRun = run()
+  await callLoggedModel(request, sameRun)
+  await callLoggedModel(request, sameRun)
+  expect(providers()).toEqual([undefined, undefined, undefined, 'openrouter', 'openrouter'])
+})
+
+test('gives up when the fallback fails too', async () => {
   model.mockRejectedValue(new ModelTimeoutError('t'))
   await expect(callLoggedModel(request, run())).rejects.toBeInstanceOf(ModelTimeoutError)
-  expect(model).toHaveBeenCalledTimes(4)
+  expect(providers()).toEqual([undefined, undefined, undefined, 'openrouter'])
+})
+
+test('the cooldown notice is on during a 503 wait and off after success', async () => {
+  vi.useFakeTimers()
+  const onCooldown = vi.fn()
+  const onFallback = vi.fn()
+  model.mockRejectedValueOnce(new ModelUnavailableError('503')).mockResolvedValueOnce(reply)
+  const result = callLoggedModel(request, { ...run(), events: { onCooldown, onFallback } })
+  await vi.advanceTimersByTimeAsync(1)
+  expect(onCooldown.mock.calls).toEqual([[true]])
+  await vi.advanceTimersByTimeAsync(30_000)
+  await result
+  expect(onCooldown.mock.calls).toEqual([[true], [false]])
+  expect(onFallback).not.toHaveBeenCalled()
+})
+
+test('the fallback tells the UI once, and skips the rate window', async () => {
+  const onCooldown = vi.fn()
+  const onFallback = vi.fn()
+  // A full window would make a rate-limited call wait.
+  model.mockRejectedValueOnce(new ModelTimeoutError('t')).mockRejectedValueOnce(new ModelTimeoutError('t')).mockRejectedValueOnce(new ModelTimeoutError('t')).mockImplementation(async () => {
+    used = fillWindow(USAGE_LIMIT)
+    return reply
+  })
+  const sameRun = { ...run(), events: { onCooldown, onFallback } }
+  await callLoggedModel(request, sameRun)
+  await callLoggedModel(request, sameRun)
+  expect(onFallback).toHaveBeenCalledTimes(1)
+  expect(providers()).toEqual([undefined, undefined, undefined, 'openrouter', 'openrouter'])
+  expect(dispatch).toHaveBeenCalledTimes(3)
 })
 
 test('no retry once the rate window is locked', async () => {
@@ -76,14 +123,13 @@ test('an overloaded Gemini is retried after 30 seconds, each attempt rereading t
   expect(dispatch).toHaveBeenCalledTimes(2)
 })
 
-test('an overloaded Gemini gives up after 3 retries', async () => {
+test('an overloaded Gemini falls back after 2 waits, with no wait before OpenRouter', async () => {
   vi.useFakeTimers()
-  model.mockRejectedValue(new ModelUnavailableError('503'))
+  model.mockRejectedValueOnce(new ModelUnavailableError('503')).mockRejectedValueOnce(new ModelUnavailableError('503')).mockRejectedValueOnce(new ModelUnavailableError('503')).mockResolvedValueOnce(reply)
   const result = callLoggedModel(request, run())
-  const settled = expect(result).rejects.toBeInstanceOf(ModelUnavailableError)
-  await vi.advanceTimersByTimeAsync(3 * 30_000)
-  await settled
-  expect(model).toHaveBeenCalledTimes(4)
+  await vi.advanceTimersByTimeAsync(2 * 30_000)
+  await expect(result).resolves.toBe(reply)
+  expect(providers()).toEqual([undefined, undefined, undefined, 'openrouter'])
 })
 
 test('no 503 retry once the rate window is locked', async () => {

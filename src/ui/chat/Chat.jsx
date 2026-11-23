@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import PixelBar from "./PixelBar.jsx";
 import CrtFrame from "./CrtFrame.jsx";
 import PromptInput from "./PromptInput.jsx";
+import FallbackWarning from "./FallbackWarning.jsx";
 import { canRecord, startRecording } from "./recorder.js";
 import { TOOLS } from "../../tools";
 import "./chat.css";
@@ -96,10 +97,11 @@ function Greeting({ text, onPick }) {
 }
 
 // Gemini rate bar, prompt, Send/Stop, and a CRT screen the reply is typed into.
-// onSend(prompt, signal) resolves to the answer text; without it, Send stays disabled.
+// onSend(prompt, signal, events) resolves to the answer text; without it, Send stays disabled.
+// events.onCooldown(true/false) swaps the thinking line and the cooldown notice; events.onFallback shows the warning.
 // usage: calls in the shared Gemini rate window, its limit, and whether Send is locked.
 // onTranscribe(audio, signal) resolves to the text of a recorded voice prompt; without it (or a mic), no Mic button.
-/** @param {{ onSend?: (prompt: string, signal: AbortSignal) => Promise<string>, onTranscribe?: (audio: Blob, signal: AbortSignal) => Promise<string>, usage?: { used: number, limit: number, locked: boolean } }} props */
+/** @param {{ onSend?: (prompt: string, signal: AbortSignal, events: { onCooldown: (cooling: boolean) => void, onFallback: () => void }) => Promise<string>, onTranscribe?: (audio: Blob, signal: AbortSignal) => Promise<string>, usage?: { used: number, limit: number, locked: boolean } }} props */
 export default function Chat({
   onSend = undefined,
   onTranscribe = undefined,
@@ -107,6 +109,8 @@ export default function Chat({
 }) {
   const [status, setStatus] = useState("idle");
   const busy = status === "running";
+  const [coolingDown, setCoolingDown] = useState(false);
+  const [onFallbackLlm, setOnFallbackLlm] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [reply, setReply] = useState("");
   const typeTimer = useRef(null);
@@ -289,15 +293,21 @@ export default function Chat({
     setExpanded((e) => (e === "input" ? null : e));
     if (speechSupported) stopSpeaking();
     setReply("");
+    setCoolingDown(false);
+    setOnFallbackLlm(false);
     setStatus("running");
     abort.current = new AbortController();
     const { signal } = abort.current;
     let answer;
     try {
-      answer = await onSend(prompt, signal);
+      answer = await onSend(prompt, signal, {
+        onCooldown: setCoolingDown,
+        onFallback: () => setOnFallbackLlm(true),
+      });
     } catch (err) {
       answer = signal.aborted ? "Stopped by user." : err.message;
     }
+    setCoolingDown(false);
     setStatus(signal.aborted ? "stopped" : "done");
     typeOut(answer ?? "");
   }
@@ -341,6 +351,7 @@ export default function Chat({
       </div>
       <div className={panelClass("output")}>
       {expandButton("output", "reply")}
+      {onFallbackLlm && <FallbackWarning onDismiss={() => setOnFallbackLlm(false)} />}
       <CrtFrame
         control={
           speechSupported && (
@@ -373,7 +384,7 @@ export default function Chat({
       >
         <pre className="reply">
           {busy ? (
-            "> thinking..."
+            coolingDown ? "> LLM is busy, waiting for cooldown." : "> thinking..."
           ) : status === "idle" ? (
             <Greeting text={reply} onPick={pick} />
           ) : (

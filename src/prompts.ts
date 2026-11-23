@@ -55,15 +55,16 @@ FAQ: list faqCollection { slug question } first, then read the answer by exact s
 
 | Collection | Fields | Links to |
 |---|---|---|
-| employer | name address phone website companyDesc resumeDesc endTitle private, dates | employmentTitlesCollection, skillLinksCollection |
-| employmentTitles | name desc remote private, dates | employer, skillLinksCollection |
+| employer | name address phone website companyDesc private, dates | employmentTitlesCollection |
+| employmentTitles | name desc location remote private, dates | employer, skillLinksCollection, employmentResumedescBulletsCollection |
+| employmentResumedescBullets | slug text priority (higher first) | employmentTitle, pitchEvidenceCollection |
 | educationAndTraining | name address phone website descShort descLong completed accredited attending remote private gpa identificationNumber issuingAuthority specialty, dates | skillLinksCollection |
 | personalGrowth | name descShort descLong url otherInfo private, dates | skillLinksCollection, pitchGrowthCollection, projectGrowthCollection |
 | skills | name desc type private | skillLinksCollection, skillGroupMembersCollection, pitchSkillsCollection, projectSkillsCollection |
-| skillLinks | private | skill, employer, employmentTitle, educationAndTraining, personalGrowth |
+| skillLinks | private | skill, employmentTitle, educationAndTraining, personalGrowth |
 | skillGroups / skillGroupMembers | name desc / – | skillGroupMembersCollection / skill, group |
 | pitches | slug type title useWhen material keywords | pitchSkillsCollection, pitchEvidenceCollection, pitchGrowthCollection, pitchProjectsCollection |
-| pitchEvidence | note | pitch, employmentTitle, employer, educationAndTraining |
+| pitchEvidence | note | pitch, employmentTitle, employmentResumedescBullet, educationAndTraining |
 | pitchCatalog (view) | slug title useWhen keywords skills evidenceCount | pitch |
 | projects | name desc problemToSolve keyFeatures toolsUsed liveUrl sourceUrl objective result bragDetail imageUrls private, dates | projectSkillsCollection, projectGrowthCollection, pitchProjectsCollection |
 | pitchSkills / projectSkills / pitchGrowth / projectGrowth / pitchProjects | – | the two linked rows |

@@ -1,4 +1,4 @@
-// POST /api/chat { messages, tools?, toolChoice?, provider? } -> { message, text, toolCalls }, with the chat JWT as a
+// POST /api/chat { messages, tools?, toolChoice?, provider? } -> { message, text, toolCalls, model }, with the chat JWT as a
 // Bearer token. One model call through a provider adapter (../llm.ts, Gemini by default); the tool loop runs in the
 // browser (src/harness). Messages use LangChain's stored format. API keys stay on the server. Every call checks the
 // caller's JWT; a rate-limited provider's call does so by being logged in the shared rate window, which checks
@@ -48,7 +48,13 @@ function bindModel({ tools, toolChoice }: ModelRequest, adapter: LlmAdapter) {
   return tools?.length ? model.bindTools!(tools, { tool_choice: toolChoice }) : model
 }
 
-const toReply = (message: AIMessageChunk) => ({ message: message.toDict(), text: message.text, toolCalls: message.tool_calls ?? [] })
+// model: the one the provider says answered (OpenRouter names the model its wildcard picked), else the adapter's.
+const toReply = (message: AIMessageChunk, adapter: LlmAdapter) => ({
+  message: message.toDict(),
+  text: message.text,
+  toolCalls: message.tool_calls ?? [],
+  model: (message.response_metadata?.model_name as string | undefined) ?? adapter.model
+})
 
 // The request and its adapter. A bad body or unknown provider throws here, before anything is logged.
 async function readRequest(req: Request) {
@@ -88,7 +94,7 @@ async function invoke({ model, messages }: Prepared, adapter: LlmAdapter, signal
     'gen_ai.usage.output_tokens': message.usage_metadata?.output_tokens ?? 0,
     'gen_ai.response.tool_calls': message.tool_calls?.length ?? 0,
   })
-  return toReply(message)
+  return toReply(message, adapter)
 }
 
 const handler = async (req: Request) => {

@@ -3,14 +3,19 @@ import { authReducer, startChatAuth } from './auth'
 import { harnessReducer } from './harness'
 import { historyReducer } from './history'
 import { networkErrorHistoryReducer } from './networkErrors'
+import { modelCallsReducer } from './modelCalls'
 import { linkedProject } from './projectLink'
 import { projectsReducer } from './projects'
 import { startUsagePolling, usageReducer } from './usage'
 
 const ui = createSlice({
   name: 'ui',
-  initialState: { ready: true, view: (linkedProject() ? 'projects' : 'chat') as 'chat' | 'projects' },
+  // useBackupLlm: every model call goes to OpenRouter.
+  initialState: { ready: true, useBackupLlm: false, view: (linkedProject() ? 'projects' : 'chat') as 'chat' | 'projects' },
   reducers: {
+    enableBackupLlm: state => {
+      state.useBackupLlm = true
+    },
     // Footer projects button: opens the projects page, or returns to the chat when it is already open.
     toggleProjects: state => {
       state.view = state.view === 'projects' ? 'chat' : 'projects'
@@ -21,7 +26,7 @@ const ui = createSlice({
   }
 })
 
-export const { setReady, toggleProjects } = ui.actions
+export const { enableBackupLlm, setReady, toggleProjects } = ui.actions
 
 export const store = configureStore({
   reducer: {
@@ -31,6 +36,7 @@ export const store = configureStore({
     history: historyReducer,
     usage: usageReducer,
     networkErrorHistory: networkErrorHistoryReducer,
+    modelCalls: modelCallsReducer,
     projects: projectsReducer
   }
 })

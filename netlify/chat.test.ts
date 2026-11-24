@@ -59,14 +59,22 @@ test('a reply from Gemini', async () => {
   invoke.mockResolvedValue(reply)
   expect(await answer(await send({ messages: [human] }))).toEqual({
     status: 200,
-    body: { message: { type: 'ai', data: { content: 'ok' } }, text: 'ok', toolCalls: [] }
+    body: { message: { type: 'ai', data: { content: 'ok' } }, text: 'ok', toolCalls: [], model: 'gemini-3.1-flash-lite' }
   })
 })
 
-test('provider openrouter uses the free wildcard model', async () => {
+test('the reply names the model OpenRouter picked', async () => {
+  invoke.mockResolvedValue({ ...reply, response_metadata: { model_name: 'vendor/free-model:free' } })
+  expect((await answer(await send({ messages: [human], provider: 'openrouter' }))).body.model).toBe('vendor/free-model:free')
+})
+
+test('provider openrouter uses only the chosen free models, in order', async () => {
   invoke.mockResolvedValue(reply)
   expect((await send({ messages: [human], provider: 'openrouter' })).status).toBe(200)
-  expect(routerFields).toHaveBeenCalledWith(expect.objectContaining({ model: 'openrouter/free', apiKey: 'router-key', maxRetries: 0 }))
+  const [fields] = routerFields.mock.calls[0] as [{ model: string; models: string[]; apiKey: string; maxRetries: number }]
+  expect(fields).toMatchObject({ model: fields.models[0], apiKey: 'router-key', maxRetries: 0 })
+  expect(fields.models.length).toBeGreaterThan(0)
+  expect(fields.models.every(model => model.endsWith(':free'))).toBe(true)
 })
 
 test("OpenRouter's overloaded 503 passes through, tagged openrouter", async () => {

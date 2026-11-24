@@ -16,7 +16,8 @@
 //            a model call that timed out in Netlify or Gemini is retried up to 2 times, each one logged
 //            in the rate window; no retry once the window is locked
 //            an overloaded Gemini (503) is retried the same way, after a 30 second wait
-//            after 3 failed Gemini requests the run moves to OpenRouter's free models, outside the rate window
+//            after 3 failed Gemini requests the run moves to three chosen OpenRouter :free models (netlify/llm.ts), outside the rate window
+//            ui.useBackupLlm sends every model call to OpenRouter and ends any cooldown wait at once
 //   errors   every failed external request is kept in redux under networkErrorHistory (state/networkErrors.ts)
 
 import { saveExchange, selectHistory } from '../state/history'

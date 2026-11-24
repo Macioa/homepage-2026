@@ -538,6 +538,10 @@
   box-shadow: none;
 }
 
+.llm .reply .use-backup {
+  text-decoration: underline;
+}
+
 /* Short screens (phone landscape, keyboard open): tighter spacing so the reply keeps some room */
 @media (max-height: 500px) {
   .llm {

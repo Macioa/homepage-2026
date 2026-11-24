@@ -7,11 +7,14 @@ import { callModel, ModelTimeoutError, ModelUnavailableError, type ModelProvider
 import { DataAccessError } from '../connections/supabase'
 import { TOKEN_NOT_READY } from '../prompts'
 import type { AppDispatch, RootState } from '../state'
+import { recordModelCall } from '../state/modelCalls'
 import { onNetworkError } from '../state/networkErrors'
 import { fetchGeminiUsage, selectActiveCalls, selectSendLocked, USAGE_LIMIT } from '../state/usage'
 
 // Retries of a Gemini call that timed out or found Gemini overloaded: three requests in all, then the fallback.
 const LLM_RETRIES = 2
+// The provider when neither the run nor the visitor has chosen the fallback.
+const DEFAULT_PROVIDER: ModelProvider = 'gemini'
 // Serves the rest of the run once Gemini has failed three times. Gets one request per model call.
 const FALLBACK_PROVIDER: ModelProvider = 'openrouter'
 // An overloaded Gemini (503) is retried after this wait.
@@ -19,7 +22,7 @@ const UNAVAILABLE_WAIT_MS = 30_000
 // Once the rate window is full, a model call waits until at least this many slots are free.
 const FREE_SLOTS = 2
 
-export type HarnessStore = { dispatch: AppDispatch; getState: () => RootState }
+export type HarnessStore = { dispatch: AppDispatch; getState: () => RootState; subscribe: (listener: () => void) => () => void }
 
 // What the UI hears about a run: a cooldown wait starting or ending, and the move to the fallback LLM.
 export type RunEvents = { onCooldown: (cooling: boolean) => void; onFallback: () => void }
@@ -43,18 +46,38 @@ const sleep = (ms: number, signal: AbortSignal) =>
     signal.addEventListener('abort', abort, { once: true })
   })
 
-// When FREE_SLOTS slots will be free if the window is full now; 0 if it isn't full.
-function slotsFreeAt({ store }: Run) {
+const backupEnabled = ({ store }: Run) => store.getState().ui.useBackupLlm
+
+// The visitor's backup choice wins over the run's own move to the fallback; undefined means Gemini.
+const providerOf = (run: Run) => (backupEnabled(run) ? FALLBACK_PROVIDER : run.provider)
+
+// Waits with the cooldown notice on. Choosing the backup LLM ends the wait at once.
+async function cooldown(ms: number, run: Run) {
+  run.events?.onCooldown(true)
+  const skip = new AbortController()
+  const unsubscribe = run.store.subscribe(() => {
+    if (backupEnabled(run)) skip.abort()
+  })
+  try {
+    await sleep(ms, AbortSignal.any([run.signal, skip.signal]))
+  } catch (error) {
+    if (!skip.signal.aborted) throw error
+  } finally {
+    unsubscribe()
+  }
+}
+
+// When FREE_SLOTS slots will be free if the window is full now; 0 if it isn't full or the backup LLM is on.
+function slotsFreeAt(run: Run) {
+  if (backupEnabled(run)) return 0
+  const { store } = run
   const expiries = selectActiveCalls(store.getState(), Date.now()).map(({ expiresAt }) => expiresAt).sort((a, b) => a - b)
   return expiries.length < USAGE_LIMIT ? 0 : expiries[expiries.length - USAGE_LIMIT + FREE_SLOTS - 1]
 }
 
 // Rechecks after each wait: other visitors' calls may have filled the window meanwhile.
 async function waitForSlots(run: Run) {
-  for (let at = slotsFreeAt(run); at; at = slotsFreeAt(run)) {
-    run.events?.onCooldown(true)
-    await sleep(at - Date.now(), run.signal)
-  }
+  for (let at = slotsFreeAt(run); at; at = slotsFreeAt(run)) await cooldown(at - Date.now(), run)
 }
 
 // The chat JWT the window read and the model call are made with.
@@ -79,36 +102,35 @@ const retryable = (error: unknown) => error instanceof ModelTimeoutError || erro
 const canCallAgain = (error: unknown, { store, signal }: Run) =>
   retryable(error) && !signal.aborted && !selectSendLocked(store.getState(), Date.now())
 
-const withProvider = (request: ModelRequest, { provider }: Run) => (provider ? { ...request, provider } : request)
-
 // Rereads the window and waits for free slots, then makes the call. An overloaded Gemini is given
 // UNAVAILABLE_WAIT_MS before the retry. With no retries left, the run moves to the fallback provider.
 async function callWithRetries(request: ModelRequest, run: Run, retriesLeft: number): ReturnType<typeof callModel> {
   const token = chatToken(run)
   // The fallback provider is outside the rate window.
-  if (!run.provider) {
+  if (!providerOf(run)) {
     await readWindow(run)
     await waitForSlots(run)
   }
+  const provider = providerOf(run)
+  // Every call goes in the model call log (state/modelCalls.ts); a stopped one doesn't.
+  const logged = { provider: provider ?? DEFAULT_PROVIDER, toolChoice: request.toolChoice, startedAt: Date.now() }
   try {
-    const reply = await callModel(withProvider(request, run), token, run.signal, onNetworkError(run.store.dispatch))
+    const reply = await callModel(provider ? { ...request, provider } : request, token, run.signal, onNetworkError(run.store.dispatch))
+    run.store.dispatch(recordModelCall({ ...logged, reply }))
     run.events?.onCooldown(false)
     return reply
   } catch (error) {
-    if (!canCallAgain(error, run)) throw error
+    if (!run.signal.aborted) run.store.dispatch(recordModelCall({ ...logged, error }))
+    if (provider || !canCallAgain(error, run)) throw error
     if (retriesLeft === 0) {
-      if (run.provider) throw error
       run.provider = FALLBACK_PROVIDER
       run.events?.onCooldown(false)
       run.events?.onFallback()
       return callWithRetries(request, run, 0)
     }
-    if (error instanceof ModelUnavailableError) {
-      run.events?.onCooldown(true)
-      await sleep(UNAVAILABLE_WAIT_MS, run.signal)
-    }
+    if (error instanceof ModelUnavailableError) await cooldown(UNAVAILABLE_WAIT_MS, run)
     return callWithRetries(request, run, retriesLeft - 1)
   }
 }
 
-export const callLoggedModel = (request: ModelRequest, run: Run) => callWithRetries(request, run, run.provider ? 0 : LLM_RETRIES)
+export const callLoggedModel = (request: ModelRequest, run: Run) => callWithRetries(request, run, LLM_RETRIES)

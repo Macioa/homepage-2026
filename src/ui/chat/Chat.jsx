@@ -101,10 +101,12 @@ function Greeting({ text, onPick }) {
 // events.onCooldown(true/false) swaps the thinking line and the cooldown notice; events.onFallback shows the warning.
 // usage: calls in the shared Gemini rate window, its limit, and whether Send is locked.
 // onTranscribe(audio, signal) resolves to the text of a recorded voice prompt; without it (or a mic), no Mic button.
-/** @param {{ onSend?: (prompt: string, signal: AbortSignal, events: { onCooldown: (cooling: boolean) => void, onFallback: () => void }) => Promise<string>, onTranscribe?: (audio: Blob, signal: AbortSignal) => Promise<string>, usage?: { used: number, limit: number, locked: boolean } }} props */
+// onUseBackupLlm: the visitor chose the alternate LLM from the cooldown notice.
+/** @param {{ onSend?: (prompt: string, signal: AbortSignal, events: { onCooldown: (cooling: boolean) => void, onFallback: () => void }) => Promise<string>, onTranscribe?: (audio: Blob, signal: AbortSignal) => Promise<string>, onUseBackupLlm?: () => void, usage?: { used: number, limit: number, locked: boolean } }} props */
 export default function Chat({
   onSend = undefined,
   onTranscribe = undefined,
+  onUseBackupLlm = undefined,
   usage = { used: 0, limit: 10, locked: false },
 }) {
   const [status, setStatus] = useState("idle");
@@ -384,7 +386,23 @@ export default function Chat({
       >
         <pre className="reply">
           {busy ? (
-            coolingDown ? "> LLM is busy, waiting for cooldown." : "> thinking..."
+            coolingDown ? (
+              <>
+                {"> Preferred LLM is busy. Trying again in 30 seconds.\n"}
+                <button
+                  type="button"
+                  className="example use-backup"
+                  onClick={() => {
+                    setCoolingDown(false);
+                    onUseBackupLlm?.();
+                  }}
+                >
+                  Use alternate LLM.
+                </button>
+              </>
+            ) : (
+              "> thinking..."
+            )
           ) : status === "idle" ? (
             <Greeting text={reply} onPick={pick} />
           ) : (

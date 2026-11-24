@@ -20,8 +20,10 @@ export type LlmAdapter = {
 // No retries: LangChain would wait out a 429, so the usage limit would stall the run instead of reaching the browser.
 const MAX_RETRIES = 0
 const GEMINI_MODEL = 'gemini-3.1-flash-lite'
-// OpenRouter picks any available free model that supports the request's features (such as tool calling).
-const OPENROUTER_MODEL = 'openrouter/free'
+// Free models that handled this app's tools in testing, best first. OpenRouter moves down the list only when one
+// errors, is rate-limited or is down. Only :free models, so a fallback is never billed.
+const OPENROUTER_MODELS = ['baidu/ernie-5.5-flash-preview:free', 'nvidia/nemotron-3.5-super-vl:free', 'nvidia/nemotron-3-ultra-550b-a55b:free']
+const [OPENROUTER_MODEL] = OPENROUTER_MODELS
 
 const ADAPTERS: Record<ProviderName, LlmAdapter> = {
   gemini: {
@@ -37,7 +39,7 @@ const ADAPTERS: Record<ProviderName, LlmAdapter> = {
     model: OPENROUTER_MODEL,
     envKey: 'OPENROUTER_API_KEY',
     rateLimited: false,
-    create: apiKey => new ChatOpenRouter({ model: OPENROUTER_MODEL, apiKey, maxRetries: MAX_RETRIES, siteUrl: process.env.URL }),
+    create: apiKey => new ChatOpenRouter({ model: OPENROUTER_MODEL, models: OPENROUTER_MODELS, apiKey, maxRetries: MAX_RETRIES, siteUrl: process.env.URL }),
     status: error => (error as { statusCode?: number }).statusCode
   }
 }

@@ -3,6 +3,7 @@
 // final reply written in one more call, or TOOL_CALL_LIMIT tool calls, likewise. off_topic_question
 // cancels the loop at once with a fixed reply.
 
+import { z } from 'zod'
 import type { ToolCall } from '../connections/gemini'
 import * as PROMPTS from '../prompts'
 import type { RootState } from '../state'
@@ -20,6 +21,12 @@ const FINAL_TOOL_CHOICE = 'none'
 const OFF_TOPIC_REPLY = "That's not what i'm here for"
 // Tool calls a run may make. Checked after each turn, so the turn that reaches it runs all its calls.
 const TOOL_CALL_LIMIT = 9
+// Tool-call markup some models write as text instead of making the call.
+const TOOL_MARKUP = /<\/?(?:[\w-]*function_calls?|[\w-]*tool_calls?|invoke|parameter)\b/i
+// Every final reply passes this, whichever provider and path wrote it.
+const FinalReply = z.string().trim().min(1).refine(text => !TOOL_MARKUP.test(text))
+// Further calls for a final reply that failed FinalReply.
+const FINAL_REPLY_RETRIES = 1
 
 type Action = 'off_topic' | 'finish_and_reply' | 'reset_context' | 'no_tool_call' | 'continue'
 
@@ -41,12 +48,12 @@ function pickAction(toolCalls: ToolCall[], state: RootState): Action {
   return 'continue'
 }
 
-// finish_and_reply's reply, if it can stand as the final reply: non-empty, and its turn fetched no data
+// finish_and_reply's reply, if it can stand as the final reply: passes FinalReply, and its turn fetched no data
 // (a reply written alongside data calls was written before their results).
 function finishedReply(toolCalls: ToolCall[]) {
-  const reply = toolCalls.find(({ name }) => name === finishAndReply.name)?.args.reply
+  const reply = FinalReply.safeParse(toolCalls.find(({ name }) => name === finishAndReply.name)?.args.reply)
   const fetchedData = toolCalls.some(({ name }) => TOOL_INDEX[name]?.kind !== 'functional')
-  return typeof reply === 'string' && reply.trim() && !fetchedData ? reply : null
+  return reply.success && !fetchedData ? reply.data : null
 }
 
 async function takeTurn(context: Context, run: Run) {
@@ -58,9 +65,13 @@ async function takeTurn(context: Context, run: Run) {
   return { action, toolCalls, context: [...context, message, ...results] }
 }
 
-async function writeFinalReply(context: Context, run: Run) {
+// An unusable reply is asked for again, then fails the run with a plain message.
+async function writeFinalReply(context: Context, run: Run, retriesLeft = FINAL_REPLY_RETRIES): Promise<string> {
   const { text } = await callLoggedModel({ messages: context, tools: TOOL_SPECS, toolChoice: FINAL_TOOL_CHOICE }, run)
-  return text
+  const reply = FinalReply.safeParse(text)
+  if (reply.success) return reply.data
+  if (retriesLeft === 0) throw new Error(PROMPTS.NO_USABLE_REPLY)
+  return writeFinalReply([...context, humanMessage(PROMPTS.FINAL_REPLY)], run, retriesLeft - 1)
 }
 
 export async function toolLoop(context: Context, run: Run, callsMade = 0): Promise<string> {

@@ -2,7 +2,7 @@ import style from '../../styles.module.css'
 import ChatScreen from '../../chat/Chat.jsx'
 import { runHarness } from '../../../harness'
 import type { RunEvents } from '../../../harness/run'
-import { store } from '../../../state'
+import { enableBackupLlm, store } from '../../../state'
 import { freshToken } from '../../../state/auth'
 import { fetchGeminiUsage } from '../../../state/usage'
 import { onNetworkError } from '../../../state/networkErrors'
@@ -10,6 +10,7 @@ import { transcribeAudio } from '../../../connections/transcribe'
 import { useAppSelector, useGeminiUsage } from '../../../state/hooks'
 
 const send = (prompt: string, signal: AbortSignal, events: RunEvents) => runHarness({ prompt, store, signal, events })
+const useBackupLlm = () => store.dispatch(enableBackupLlm())
 
 // A recorded voice prompt to text; the call counts in the Gemini rate window, so the bar is reread after it.
 async function transcribe(audio: Blob, signal: AbortSignal) {
@@ -30,7 +31,7 @@ export const Chat = () => {
   const ready = useAppSelector(s => Boolean(s.auth.token))
   return (
     <section id='chat' className={style.chat} hidden={hidden}>
-      <ChatScreen onSend={ready ? send : undefined} onTranscribe={ready ? transcribe : undefined} usage={useGeminiUsage()} />
+      <ChatScreen onSend={ready ? send : undefined} onTranscribe={ready ? transcribe : undefined} onUseBackupLlm={useBackupLlm} usage={useGeminiUsage()} />
     </section>
   )
 }

@@ -48,7 +48,8 @@ export type ModelProvider = 'gemini' | 'openrouter'
 
 export type ModelRequest = { messages: StoredMessage[]; tools?: ToolSpec[]; toolChoice?: ToolChoice; provider?: ModelProvider }
 
-export type ModelReply = { message: StoredMessage; text: string; toolCalls: ToolCall[] }
+// model: the model that answered, as the provider reports it (OpenRouter names which of its listed models answered).
+export type ModelReply = { message: StoredMessage; text: string; toolCalls: ToolCall[]; model: string }
 
 // An error the chat function answered itself: the provider's name for the model call, 'netlify' for its own setup.
 type TaggedError = { error?: string; source?: ModelProvider | 'netlify'; timeout?: boolean }

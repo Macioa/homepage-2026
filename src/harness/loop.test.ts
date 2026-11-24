@@ -91,6 +91,26 @@ test('off_topic_question at the limit keeps its fixed reply', async () => {
   expect(model).toHaveBeenCalledTimes(2)
 })
 
+const MARKUP = '<dots_function_call>\n<invoke name="graphql_query">'
+
+test('a finish_and_reply with tool markup gets a final reply written instead', async () => {
+  model.mockResolvedValueOnce(turn(call('finish_and_reply', { reply: MARKUP }))).mockResolvedValueOnce(finalText('clean'))
+  await expect(toolLoop(freshContext('q'), run)).resolves.toBe('clean')
+  expect(lastChoice()).toBe('none')
+})
+
+test('an unusable final reply is asked for once more', async () => {
+  model.mockResolvedValueOnce(turn(call('finish_and_reply', { reply: ' ' }))).mockResolvedValueOnce(finalText(MARKUP)).mockResolvedValueOnce(finalText('clean'))
+  await expect(toolLoop(freshContext('q'), run)).resolves.toBe('clean')
+  expect(model).toHaveBeenCalledTimes(3)
+})
+
+test('a second unusable final reply fails with a plain message, never the markup', async () => {
+  model.mockResolvedValueOnce(turn(call('finish_and_reply', { reply: MARKUP }))).mockResolvedValue(finalText(MARKUP))
+  await expect(toolLoop(freshContext('q'), run)).rejects.toThrow("Couldn't get an answer. Try again.")
+  expect(model).toHaveBeenCalledTimes(3)
+})
+
 test('the count carries across reset_context', async () => {
   model.mockImplementation(async ({ toolChoice, tools }: ModelRequest) => {
     guard()

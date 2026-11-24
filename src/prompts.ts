@@ -24,6 +24,9 @@ Keys: ${keys.join(', ')}`
 
 export const FINAL_REPLY = 'Write the final reply to the visitor from the data above. Plain text, no tool calls.'
 
+// Shown to the visitor when the model can't produce a usable final reply.
+export const NO_USABLE_REPLY = "Couldn't get an answer. Try again."
+
 // search_skills result: the label, related-skills total included, is the answer.
 export const SKILL_LABEL_REPLY = (label: string) =>
   `Years used (skill + related skills total): ${label}. Answer now with both parts, shaped "<skill>: <n> years, plus <total> years total with other <group> (<examples>)."`

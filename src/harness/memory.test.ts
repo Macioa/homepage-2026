@@ -22,7 +22,8 @@ beforeEach(() => {
 const finish = (reply: string): ModelReply => ({
   message: { type: 'ai', data: {} },
   text: '',
-  toolCalls: [{ id: reply, name: 'finish_and_reply', args: { reply } }]
+  toolCalls: [{ id: reply, name: 'finish_and_reply', args: { reply } }],
+  model: 'm'
 })
 const live = () => new AbortController().signal
 const sent = (call: number) => (model.mock.calls[call][0] as ModelRequest).messages.map(({ type, data }) => [type, data.content])

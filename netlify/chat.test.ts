@@ -65,7 +65,8 @@ test('a reply from Gemini', async () => {
 
 test('the reply names the model OpenRouter picked', async () => {
   invoke.mockResolvedValue({ ...reply, response_metadata: { model_name: 'vendor/free-model:free' } })
-  expect((await answer(await send({ messages: [human], provider: 'openrouter' }))).body.model).toBe('vendor/free-model:free')
+  const { body } = (await answer(await send({ messages: [human], provider: 'openrouter' }))) as { body: { model: string } }
+  expect(body.model).toBe('vendor/free-model:free')
 })
 
 test('provider openrouter uses only the chosen free models, in order', async () => {

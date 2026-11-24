@@ -25,8 +25,8 @@ beforeEach(() => {
 let ids = 0
 const call = (name: string, args: Record<string, unknown> = {}): ToolCall => ({ id: String(ids++), name, args })
 const search = (query: string) => call('test_search_jobs', { query })
-const turn = (...toolCalls: ToolCall[]): ModelReply => ({ message: { type: 'ai', data: {} }, text: '', toolCalls })
-const finalText = (text: string): ModelReply => ({ message: { type: 'ai', data: {} }, text, toolCalls: [] })
+const turn = (...toolCalls: ToolCall[]): ModelReply => ({ message: { type: 'ai', data: {} }, text: '', toolCalls, model: 'm' })
+const finalText = (text: string): ModelReply => ({ message: { type: 'ai', data: {} }, text, toolCalls: [], model: 'm' })
 
 // A broken limit would loop forever on microtasks, past the test timeout; fail fast instead.
 const MAX_MODEL_CALLS = 30

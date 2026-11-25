@@ -20,9 +20,10 @@ export type LlmAdapter = {
 // No retries: LangChain would wait out a 429, so the usage limit would stall the run instead of reaching the browser.
 const MAX_RETRIES = 0
 const GEMINI_MODEL = 'gemini-3.1-flash-lite'
-// Free models that handled this app's tools in testing, best first. OpenRouter moves down the list only when one
-// errors, is rate-limited or is down. Only :free models, so a fallback is never billed.
-const OPENROUTER_MODELS = ['baidu/ernie-5.5-flash-preview:free', 'nvidia/nemotron-3.5-super-vl:free', 'nvidia/nemotron-3-ultra-550b-a55b:free']
+// Free models that passed every test question with this app's tools, best first (see docs/openrouter-model-tests.md).
+// OpenRouter moves down the list only when one errors, is rate-limited or is down. Only :free models, so a fallback
+// is never billed.
+const OPENROUTER_MODELS = ['baidu/ernie-5.5-flash-preview:free']
 const [OPENROUTER_MODEL] = OPENROUTER_MODELS
 
 const ADAPTERS: Record<ProviderName, LlmAdapter> = {
